@@ -45,6 +45,8 @@
     const POINT_COUNT = 80;
     const WORLD_TOP = -12000;
     const WORLD_HEIGHT = 13000;
+    const ROOM_DARK_COLOR = 0x3d3d3d;
+    const ROOM_DARK_CSS = "#3D3D3D";
 
     const CatState = {
       IDLE: "IDLE",
@@ -195,8 +197,8 @@
           strokeThickness: 4
         }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
 
-        this.input.on("pointerdown", (pointer) => {
-          this.handleJump(pointer.x < GAME_WIDTH / 2 ? -1 : 1);
+        this.input.on("pointerdown", () => {
+          this.handleCatRelativeJump();
         });
 
         this.keys = this.input.keyboard.addKeys({
@@ -246,11 +248,19 @@
       createRooms() {
         const roomHeight = 720;
         const topRoom = Math.floor(Math.abs(WORLD_TOP) / roomHeight) + 1;
-        for (let i = 0; i <= topRoom; i += 1) {
+        this.add.rectangle(
+          GAME_WIDTH / 2,
+          WORLD_TOP + WORLD_HEIGHT / 2,
+          GAME_WIDTH,
+          WORLD_HEIGHT,
+          ROOM_DARK_COLOR
+        ).setDepth(-30);
+
+        for (let i = 0; i <= topRoom + 1; i += 1) {
           const y = 690 - (i + 1) * roomHeight;
           const roomId = i % 2;
           if (roomId === 0) {
-            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, 0x3d3d3d)
+            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, ROOM_DARK_COLOR)
               .setDepth(-20);
             for (let lineY = y + 38; lineY < y + roomHeight; lineY += 46) {
               this.add.rectangle(195, lineY, GAME_WIDTH, 2, 0x555555).setDepth(-19);
@@ -321,10 +331,10 @@
 
       update() {
         if (Phaser.Input.Keyboard.JustDown(this.keys.left) || Phaser.Input.Keyboard.JustDown(this.keys.arrowLeft)) {
-          this.handleJump(-1);
+          this.handleCatRelativeJump();
         }
         if (Phaser.Input.Keyboard.JustDown(this.keys.right) || Phaser.Input.Keyboard.JustDown(this.keys.arrowRight)) {
-          this.handleJump(1);
+          this.handleCatRelativeJump();
         }
 
         if (this.catState === CatState.JUMP && this.cat.body.velocity.y > 50) {
@@ -377,6 +387,11 @@
         this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
       }
 
+      handleCatRelativeJump() {
+        const direction = this.cat.x < GAME_WIDTH / 2 ? 1 : -1;
+        this.handleJump(direction);
+      }
+
       tryCatch() {
         if (this.cat.body.velocity.y >= MAX_FALL_SPEED) {
           return;
@@ -423,7 +438,7 @@
       parent: "game",
       width: GAME_WIDTH,
       height: GAME_HEIGHT,
-      backgroundColor: "#3D3D3D",
+      backgroundColor: ROOM_DARK_CSS,
       pixelArt: true,
       physics: {
         default: "arcade",
