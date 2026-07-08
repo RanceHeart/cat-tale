@@ -75,7 +75,7 @@
       ctx.fillRect(x, y, w, h);
     }
 
-    function drawCatFrame(ctx, ox, frame) {
+    function drawCatFrame(ctx, ox, frame, pawColor) {
       const fur = "#FF9F43";
       const stripe = "#D97730";
       const belly = "#FFF3E0";
@@ -92,10 +92,10 @@
       const headY = hang ? 5 : airCatch ? 4 : fall ? 6 : 5;
 
       if (hang) {
-        px(ctx, ox + 10, 3, 3, 10, fur);
-        px(ctx, ox + 20, 3, 3, 10, fur);
-        px(ctx, ox + 9, 1, 5, 3, pink);
-        px(ctx, ox + 19, 1, 5, 3, pink);
+        px(ctx, ox + 10, 3, 3, 10, pawColor || fur);
+        px(ctx, ox + 20, 3, 3, 10, pawColor || fur);
+        px(ctx, ox + 9, 1, 5, 3, pawColor || pink);
+        px(ctx, ox + 19, 1, 5, 3, pawColor || pink);
       } else if (airCatch) {
         px(ctx, ox + 8, 2, 3, 9, fur);
         px(ctx, ox + 22, 2, 3, 9, fur);
@@ -112,8 +112,8 @@
       px(ctx, ox + 9 + lean, bodyY, 14, 12, fur);
       px(ctx, ox + 12 + lean, bodyY + 4, 8, 8, belly);
       px(ctx, ox + 11 + lean, bodyY + 1, 10, 2, stripe);
-      px(ctx, ox + 10 + lean, bodyY + 10, 4, 5, fur);
-      px(ctx, ox + 19 + lean, bodyY + 10, 4, 5, fur);
+      px(ctx, ox + 10 + lean, bodyY + 10, 4, 5, pawColor || fur);
+      px(ctx, ox + 19 + lean, bodyY + 10, 4, 5, pawColor || fur);
 
       if (fall) {
         px(ctx, ox + 5, bodyY + 3, 5, 3, fur);
@@ -148,10 +148,13 @@
       if (scene.textures.exists("cat")) {
         return;
       }
-      const { canvas, ctx } = makeCanvas(32 * 6, 32);
+      const { canvas, ctx } = makeCanvas(32 * 9, 32);
       for (let i = 0; i < 6; i += 1) {
         drawCatFrame(ctx, i * 32, i);
       }
+      drawCatFrame(ctx, 6 * 32, 1, "#FF8C00");
+      drawCatFrame(ctx, 7 * 32, 1, "#FF5500");
+      drawCatFrame(ctx, 8 * 32, 1, "#FF0000");
       scene.textures.addSpriteSheet("cat", canvas, {
         frameWidth: 32,
         frameHeight: 32
@@ -201,7 +204,6 @@
           strokeThickness: 3
         }).setOrigin(0.5).setDepth(15).setVisible(false);
 
-        this.chargePaws = this.add.graphics().setDepth(11).setVisible(false);
         this.catchPoint(this.grabPoints[0]);
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
@@ -279,6 +281,21 @@
         this.anims.create({
           key: "cat-air-catch",
           frames: [{ key: "cat", frame: 5 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-charge0",
+          frames: [{ key: "cat", frame: 6 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-charge1",
+          frames: [{ key: "cat", frame: 7 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-charge2",
+          frames: [{ key: "cat", frame: 8 }],
           frameRate: 1
         });
       }
@@ -387,8 +404,6 @@
 
         if (this.catState === CatState.CHARGING) {
           this.updateCharge();
-        } else {
-          this.hideChargePaws();
         }
 
         if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
@@ -428,7 +443,6 @@
         this.catState = CatState.JUMP;
         this.airCatchUsed = false;
         this.jumpArrow.setVisible(false);
-        this.hideChargePaws();
         this.resetCatScale();
         this.cat.body.allowGravity = true;
         this.cat.setVelocity(direction * velocityX, velocityY);
@@ -477,46 +491,19 @@
         const stretch = Phaser.Math.Linear(1, 1.15, t);
 
         this.cat.setScale(this.catBaseScaleX * stretch, this.catBaseScaleY * squash);
-        this.drawChargePaws(t);
+        if (t < 0.1) {
+          this.cat.play("cat-hang");
+        } else if (t < 0.4) {
+          this.cat.play("cat-charge0");
+        } else if (t < 0.7) {
+          this.cat.play("cat-charge1");
+        } else {
+          this.cat.play("cat-charge2");
+        }
 
         if (chargeTime >= MAX_CHARGE) {
           this.releaseChargeJump();
         }
-      }
-
-      drawChargePaws(t) {
-        this.chargePaws.clear();
-
-        if (t < 0.05) {
-          this.chargePaws.setVisible(false);
-          return;
-        }
-
-        const color = t < 0.3 ? 0xff9f43 : t < 0.6 ? 0xff6b35 : t < 0.8 ? 0xff3d00 : 0xff0000;
-        const pawOffsets = [
-          { x: -16, y: 14 },
-          { x: 16, y: 14 },
-          { x: -14, y: 19 },
-          { x: 14, y: 19 },
-          { x: -16, y: -17 },
-          { x: 16, y: -17 }
-        ];
-
-        this.chargePaws.fillStyle(color, 0.32);
-        pawOffsets.forEach((offset) => {
-          this.chargePaws.fillRect(this.cat.x + offset.x - 3, this.cat.y + offset.y - 3, 6, 6);
-        });
-
-        this.chargePaws.fillStyle(color, 1);
-        pawOffsets.forEach((offset) => {
-          this.chargePaws.fillRect(this.cat.x + offset.x - 2, this.cat.y + offset.y - 2, 4, 4);
-        });
-
-        this.chargePaws.setVisible(true);
-      }
-
-      hideChargePaws() {
-        this.chargePaws.clear().setVisible(false);
       }
 
       releaseChargeJump() {
@@ -598,7 +585,6 @@
         this.cat.setPosition(point.x, point.y + 9);
         this.cat.setVelocity(0, 0);
         this.resetCatScale();
-        this.hideChargePaws();
         this.cat.body.allowGravity = false;
         this.cat.play("cat-hang");
         this.time.delayedCall(90, () => {
