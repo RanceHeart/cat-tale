@@ -201,7 +201,7 @@
           strokeThickness: 3
         }).setOrigin(0.5).setDepth(15).setVisible(false);
 
-        this.chargeBar = this.add.graphics().setDepth(16).setVisible(false);
+        this.chargePaws = this.add.graphics().setDepth(11).setVisible(false);
         this.catchPoint(this.grabPoints[0]);
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
@@ -219,6 +219,12 @@
 
         this.input.on("pointerdown", (pointer) => {
           this.handleCatRelativeJump(pointer, "pointer");
+        });
+
+        this.input.on("pointermove", (pointer) => {
+          if (this.catState === CatState.CHARGING) {
+            this.chargeDirection = pointer.x < this.cat.x ? -1 : 1;
+          }
         });
 
         this.input.on("pointerup", () => {
@@ -381,7 +387,11 @@
 
         if (this.catState === CatState.CHARGING) {
           this.updateCharge();
-        } else if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
+        } else {
+          this.hideChargePaws();
+        }
+
+        if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
           this.cat.setAngle(Math.sin(this.time.now / 170) * 2);
         } else {
           this.cat.setAngle(0);
@@ -418,7 +428,7 @@
         this.catState = CatState.JUMP;
         this.airCatchUsed = false;
         this.jumpArrow.setVisible(false);
-        this.chargeBar.clear().setVisible(false);
+        this.hideChargePaws();
         this.resetCatScale();
         this.cat.body.allowGravity = true;
         this.cat.setVelocity(direction * velocityX, velocityY);
@@ -426,7 +436,7 @@
       }
 
       handleCatRelativeJump(pointer, inputType = "pointer") {
-        const direction = pointer.x < GAME_WIDTH / 2 ? -1 : 1;
+        const direction = pointer.x < this.cat.x ? -1 : 1;
         this.startChargeJump(direction, inputType);
       }
 
@@ -467,27 +477,46 @@
         const stretch = Phaser.Math.Linear(1, 1.15, t);
 
         this.cat.setScale(this.catBaseScaleX * stretch, this.catBaseScaleY * squash);
-        this.drawChargeBar(t);
+        this.drawChargePaws(t);
 
         if (chargeTime >= MAX_CHARGE) {
           this.releaseChargeJump();
         }
       }
 
-      drawChargeBar(t) {
-        const width = 40;
-        const height = 4;
-        const x = this.cat.x - width / 2;
-        const y = this.cat.y - 34;
-        const fillColor = t >= 0.8 ? 0xff4444 : t >= 0.5 ? 0xff8c00 : 0xffd700;
+      drawChargePaws(t) {
+        this.chargePaws.clear();
 
-        this.chargeBar
-          .clear()
-          .fillStyle(0x1b1b1b, 0.85)
-          .fillRect(x, y, width, height)
-          .fillStyle(fillColor, 1)
-          .fillRect(x, y, width * t, height)
-          .setVisible(true);
+        if (t < 0.05) {
+          this.chargePaws.setVisible(false);
+          return;
+        }
+
+        const color = t < 0.3 ? 0xff9f43 : t < 0.6 ? 0xff6b35 : t < 0.8 ? 0xff3d00 : 0xff0000;
+        const pawOffsets = [
+          { x: -16, y: 14 },
+          { x: 16, y: 14 },
+          { x: -14, y: 19 },
+          { x: 14, y: 19 },
+          { x: -16, y: -17 },
+          { x: 16, y: -17 }
+        ];
+
+        this.chargePaws.fillStyle(color, 0.32);
+        pawOffsets.forEach((offset) => {
+          this.chargePaws.fillRect(this.cat.x + offset.x - 3, this.cat.y + offset.y - 3, 6, 6);
+        });
+
+        this.chargePaws.fillStyle(color, 1);
+        pawOffsets.forEach((offset) => {
+          this.chargePaws.fillRect(this.cat.x + offset.x - 2, this.cat.y + offset.y - 2, 4, 4);
+        });
+
+        this.chargePaws.setVisible(true);
+      }
+
+      hideChargePaws() {
+        this.chargePaws.clear().setVisible(false);
       }
 
       releaseChargeJump() {
@@ -569,7 +598,7 @@
         this.cat.setPosition(point.x, point.y + 9);
         this.cat.setVelocity(0, 0);
         this.resetCatScale();
-        this.chargeBar.clear().setVisible(false);
+        this.hideChargePaws();
         this.cat.body.allowGravity = false;
         this.cat.play("cat-hang");
         this.time.delayedCall(90, () => {
