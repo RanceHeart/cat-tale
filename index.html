@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>猫猫物语 - Cat Tale</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M10 28 18 8l12 12h4L46 8l8 20c5 16-6 28-22 28S5 44 10 28Z' fill='%23ff8c42' stroke='%232c3e50' stroke-width='4'/%3E%3Ccircle cx='24' cy='31' r='4'/%3E%3Ccircle cx='40' cy='31' r='4'/%3E%3Cpath d='M29 40h6l-3 4z' fill='%23ff6b6b'/%3E%3C/svg%3E">
+  <script src="https://unpkg.com/roughjs@4/bundled/rough.js"></script>
+  <style>
+    :root {
+      --sky-bg: #87CEEB;
+      --grass: #7EC850;
+      --earth: #8B5E3C;
+      --cat-fur: #FF8C42;
+      --cat-stripe: #E0672A;
+      --cat-belly: #FFF3E0;
+      --fish: #FFD700;
+      --enemy: #E74C3C;
+      --block: #C8A87C;
+      --ui-text: #2C3E50;
+      --ui-accent: #FF6B6B;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--sky-bg);
+      color: var(--ui-text);
+      font-family: "Comic Sans MS", "Marker Felt", "Trebuchet MS", system-ui, sans-serif;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #game-wrap {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(#87CEEB 0%, #B7E6FF 60%, #F8F0D6 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    .screen-ui {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .title-card, .end-card {
+      text-align: center;
+      color: var(--ui-text);
+      text-shadow: 2px 2px 0 rgba(255,255,255,0.65);
+      padding: 24px;
+    }
+
+    .title-card h1, .end-card h1 {
+      margin: 0;
+      font-size: clamp(46px, 9vw, 96px);
+      letter-spacing: 0;
+      line-height: 1;
+    }
+
+    .title-cat {
+      width: 132px;
+      height: 96px;
+      margin: 0 auto 14px;
+      background: center / contain no-repeat;
+      filter: drop-shadow(0 8px 0 rgba(44,62,80,0.18));
+    }
+
+    .prompt {
+      margin-top: 18px;
+      font-size: clamp(18px, 3vw, 28px);
+      font-weight: 800;
+      color: var(--ui-accent);
+    }
+
+    .credit {
+      position: fixed;
+      left: 12px;
+      bottom: 10px;
+      z-index: 6;
+      color: rgba(44,62,80,0.82);
+      font-size: 12px;
+      pointer-events: none;
+      text-shadow: 1px 1px 0 rgba(255,255,255,0.55);
+    }
+
+    .touch-controls {
+      position: fixed;
+      inset: auto 0 0 0;
+      z-index: 8;
+      display: none;
+      justify-content: space-between;
+      align-items: end;
+      padding: 0 max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+
+    .touch-cluster {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      width: 68px;
+      height: 68px;
+      border: 3px solid rgba(44,62,80,0.74);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.58);
+      color: var(--ui-text);
+      font-size: 30px;
+      font-weight: 900;
+      box-shadow: 0 6px 0 rgba(44,62,80,0.16);
+      backdrop-filter: blur(4px);
+    }
+
+    .touch-btn:active, .touch-btn.is-down {
+      transform: translateY(4px) scale(0.98);
+      box-shadow: 0 2px 0 rgba(44,62,80,0.16);
+      background: rgba(255,255,255,0.82);
+    }
+
+    @media (pointer: coarse), (max-width: 760px) {
+      .touch-controls { display: flex; }
+      .credit { bottom: 102px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrap"></div>
+  <div class="screen-ui" id="screen-ui"></div>
+  <div class="touch-controls" aria-label="Touch controls">
+    <div class="touch-cluster">
+      <button class="touch-btn" data-touch="left" aria-label="Left">‹</button>
+      <button class="touch-btn" data-touch="right" aria-label="Right">›</button>
+    </div>
+    <div class="touch-cluster">
+      <button class="touch-btn" data-touch="jump" aria-label="Jump">⤴</button>
+    </div>
+  </div>
+  <div class="credit">Music: "Hep Cats" and "Electro Cabello" Kevin MacLeod (incompetech.com), CC BY 4.0</div>
+
+  <script type="module">
+    import kaplay from "https://unpkg.com/kaplay@3001/dist/kaplay.mjs";
+    import { animate, createTimeline } from "https://cdn.jsdelivr.net/npm/animejs@4/lib/anime.esm.js";
+
+    const k = kaplay({
+      global: false,
+      root: document.querySelector("#game-wrap"),
+      width: 960,
+      height: 540,
+      letterbox: true,
+      crisp: true,
+      background: [135, 206, 235],
+      debug: false,
+    });
+
+    const {
+      add, addLevel, area, body, camPos, camScale, circle, color, destroy, dt, fixed,
+      go, height, loadSprite, loop, onKeyDown, onKeyPress,
+      opacity, outline, play, pos, rand, rect, rotate, scene, scale, sprite, text,
+      setCamPos, setCamScale, getCamPos, tween, vec2, wait, width, z,
+    } = k;
+
+    const UI = document.querySelector("#screen-ui");
+    const TILE = 48;
+    const LEVEL_Y = 420;
+    const MUSIC = [
+      {
+        name: "Hep Cats",
+        url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Hep%20Cats.mp3",
+      },
+      {
+        name: "Electro Cabello",
+        url: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Electro%20Cabello.mp3",
+      },
+    ];
+
+    const state = {
+      score: 0,
+      lives: 3,
+      level: 0,
+      invincible: false,
+      audioReady: false,
+      audioContext: null,
+      music: null,
+      titleCatURL: "",
+      keys: { left: false, right: false, jump: false },
+    };
+
+    const levels = [
+      {
+        name: "花园",
+        theme: "garden",
+        music: 0,
+        map: [
+          "                                                                                                      ",
+          "                                                                                                      ",
+          "                                                                                                      ",
+          "              %                 %         %                     %%                         %          ",
+          "          ====              ======                 ====       ======       %        ====              ",
+          "  @             %      ^                %     ^                         ======               ^    F   ",
+          "====================  ========     ==========     ==================  =========  =====================",
+        ],
+      },
+      {
+        name: "屋顶",
+        theme: "roof",
+        music: 1,
+        map: [
+          "                                                                                                                       ",
+          "                                                                                                                       ",
+          "                  %                      %%%                     %                    %%                              ",
+          "              ======             o     ======        P       ======        ====      ======                            ",
+          "      %                         =====                       P                         D                  %             ",
+          "  @        ^          |   |                    ^                     ====        |   |         ^      ======       F    ",
+          "==============    ====   ====       =================   ====    ===========     ====   ====    ========================",
+        ],
+      },
+      {
+        name: "皇宫",
+        theme: "palace",
+        music: 1,
+        map: [
+          "                                                                                                                            ",
+          "                                                                                                                            ",
+          "               %%                 %%                %                  %%                                      %            ",
+          "          ==== ====          ==== ====       ====         ====    ==== ====       ====              P       ======           ",
+          "  @                 ^    S              D          S   ^                      D          S       =====               B   F   ",
+          "======  ======   ======   ======   ======   ======   ======   ======   ======   ======   ======      ======   ============",
+          "      S      S          S        S        S        S        S        S        S        S                                      ",
+        ],
+      },
+    ];
+
+    function roughDataURL(w, h, draw) {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const rc = rough.canvas(canvas);
+      const ctx = canvas.getContext("2d");
+      draw(rc, ctx, w, h);
+      return canvas.toDataURL("image/png");
+    }
+
+    function catFrameDataURL(kind = "idle", step = 0) {
+      return roughDataURL(64, 64, (rc, ctx) => {
+        ctx.clearRect(0, 0, 64, 64);
+        const fur = "#FF8C42";
+        const stripe = "#E0672A";
+        const line = "#2C3E50";
+        const belly = "#FFF3E0";
+        const pawLift = kind === "walk" ? (step ? -4 : 3) : 0;
+        const pawOther = kind === "walk" ? (step ? 3 : -4) : 0;
+        const bodyY = kind === "jump" ? 33 : kind === "fall" ? 36 : 37;
+        const tailEndY = kind === "jump" ? 46 : kind === "fall" ? 20 : 26 + (step ? 4 : -2);
+
+        rc.path(`M18 ${bodyY} C9 31, 8 47, 23 51 C41 57, 52 46, 44 34 C38 24, 25 25, 18 ${bodyY}Z`, {
+          roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 2,
+        });
+        rc.ellipse(30, 41, 18, 14, { roughness: 0.8, fill: belly, fillStyle: "solid", stroke: "#F5B974", strokeWidth: 1 });
+        rc.path(`M43 35 C55 29, 58 ${tailEndY}, 48 ${tailEndY + 8}`, {
+          roughness: 0.8, stroke: stripe, strokeWidth: 6,
+        });
+        rc.path("M19 22 L15 8 L27 17 Z", { roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 2 });
+        rc.path("M39 17 L50 8 L48 24 Z", { roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 2 });
+        rc.circle(32, 24, 31, { roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 2 });
+        rc.circle(26, 24, 7, { roughness: 0.7, fill: "#FFFFFF", fillStyle: "solid", stroke: line, strokeWidth: 1 });
+        rc.circle(39, 24, 7, { roughness: 0.7, fill: "#FFFFFF", fillStyle: "solid", stroke: line, strokeWidth: 1 });
+        rc.circle(27, 25, 2.5, { roughness: 0.4, fill: line, fillStyle: "solid", stroke: line });
+        rc.circle(38, 25, 2.5, { roughness: 0.4, fill: line, fillStyle: "solid", stroke: line });
+        rc.path("M30 32 L35 32 L32 36 Z", { roughness: 0.6, fill: "#FF8FB1", fillStyle: "solid", stroke: line, strokeWidth: 1 });
+        [23, 32, 41].forEach((y, i) => {
+          const off = i - 1;
+          rc.line(18, 34 + off * 3, 5, 30 + off * 5, { roughness: 0.8, stroke: line, strokeWidth: 1.2 });
+          rc.line(46, 34 + off * 3, 59, 30 + off * 5, { roughness: 0.8, stroke: line, strokeWidth: 1.2 });
+        });
+        rc.line(24, 14, 21, 19, { roughness: 0.8, stroke: stripe, strokeWidth: 2 });
+        rc.line(32, 11, 32, 17, { roughness: 0.8, stroke: stripe, strokeWidth: 2 });
+        rc.line(40, 14, 43, 19, { roughness: 0.8, stroke: stripe, strokeWidth: 2 });
+        rc.line(22, 38, 36, 38, { roughness: 0.8, stroke: stripe, strokeWidth: 2 });
+        rc.line(21, 43, 36, 44, { roughness: 0.8, stroke: stripe, strokeWidth: 2 });
+        rc.ellipse(21, 53 + pawLift, 8, 5, { roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 1 });
+        rc.ellipse(36, 53 + pawOther, 8, 5, { roughness: 0.8, fill: fur, fillStyle: "solid", stroke: line, strokeWidth: 1 });
+      });
+    }
+
+    function fishDataURL() {
+      return roughDataURL(36, 26, (rc) => {
+        rc.path("M4 13 C12 2, 27 4, 31 13 C27 22, 12 24, 4 13Z", { roughness: 1.1, fill: "#FFD700", fillStyle: "solid", stroke: "#8B5E3C", strokeWidth: 2 });
+        rc.path("M29 13 L35 5 L35 21 Z", { roughness: 1.1, fill: "#FFB000", fillStyle: "solid", stroke: "#8B5E3C", strokeWidth: 2 });
+        rc.circle(12, 11, 3, { roughness: 0.8, fill: "#2C3E50", fillStyle: "solid", stroke: "#2C3E50" });
+      });
+    }
+
+    function tileDataURL(kind) {
+      return roughDataURL(56, 56, (rc, ctx) => {
+        const palette = {
+          ground: ["#7EC850", "#8B5E3C"],
+          block: ["#C8A87C", "#8B5E3C"],
+          pipe: ["#68B55B", "#2C7A49"],
+          spike: ["#FFFFFF", "#E74C3C"],
+          flag: ["#FF6B6B", "#2C3E50"],
+          platform: ["#C8A87C", "#6D5037"],
+        }[kind] || ["#C8A87C", "#2C3E50"];
+        if (kind === "spike") {
+          rc.path("M3 52 L18 8 L30 52 Z M26 52 L40 12 L53 52 Z", { roughness: 1.2, fill: palette[0], fillStyle: "solid", stroke: palette[1], strokeWidth: 2 });
+          return;
+        }
+        if (kind === "flag") {
+          rc.line(10, 4, 10, 54, { roughness: 1.2, stroke: palette[1], strokeWidth: 3 });
+          rc.path("M11 6 L50 15 L11 25 Z", { roughness: 1.1, fill: palette[0], fillStyle: "solid", stroke: palette[1], strokeWidth: 2 });
+          return;
+        }
+        if (kind === "pipe") {
+          rc.rectangle(8, 14, 40, 42, { roughness: 1.3, fill: palette[0], fillStyle: "hachure", fillWeight: 2, stroke: palette[1], strokeWidth: 2 });
+          rc.rectangle(3, 4, 50, 16, { roughness: 1.2, fill: "#8FD77D", fillStyle: "solid", stroke: palette[1], strokeWidth: 2 });
+          return;
+        }
+        rc.rectangle(2, 2, 52, 52, { roughness: kind === "ground" ? 1.5 : 1.1, fill: palette[1], fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+        if (kind === "ground") {
+          rc.rectangle(2, 2, 52, 14, { roughness: 1.5, fill: palette[0], fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 1.5 });
+          for (let i = 0; i < 5; i++) rc.line(8 + i * 10, 20, 2 + i * 12, 47, { roughness: 2.5, stroke: "#6D452B", strokeWidth: 1 });
+        } else {
+          ctx.font = "bold 26px Comic Sans MS";
+          ctx.fillStyle = "#6D5037";
+          ctx.fillText("?", 20, 37);
+        }
+      });
+    }
+
+    function enemyDataURL(kind) {
+      return roughDataURL(kind === "boss" ? 94 : 54, kind === "boss" ? 66 : 46, (rc) => {
+        if (kind === "crow") {
+          rc.ellipse(27, 22, 40, 24, { roughness: 1, fill: "#424656", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.path("M7 21 C0 9, 14 8, 20 21", { roughness: 1.1, fill: "#59606F", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.path("M36 22 C43 10, 56 14, 48 25", { roughness: 1.1, fill: "#59606F", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.circle(35, 17, 5, { roughness: 0.8, fill: "#FFF", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.circle(36, 17, 2, { roughness: 0.5, fill: "#2C3E50", fillStyle: "solid" });
+          rc.path("M42 20 L52 16 L44 25 Z", { roughness: 0.8, fill: "#FFD700", fillStyle: "solid", stroke: "#2C3E50" });
+        } else if (kind === "boss") {
+          rc.rectangle(8, 16, 76, 34, { roughness: 1.1, fill: "#7C4A32", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.ellipse(70, 20, 32, 25, { roughness: 1.1, fill: "#9A6045", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.circle(76, 15, 6, { roughness: 0.8, fill: "#FFF", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.circle(78, 15, 2, { roughness: 0.8, fill: "#2C3E50", fillStyle: "solid" });
+          rc.path("M8 27 C-3 18, 1 8, 18 20", { roughness: 1.1, stroke: "#7C4A32", strokeWidth: 7 });
+          rc.ellipse(30, 52, 13, 10, { roughness: 1, fill: "#5E3728", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.ellipse(59, 52, 13, 10, { roughness: 1, fill: "#5E3728", fillStyle: "solid", stroke: "#2C3E50" });
+        } else {
+          rc.ellipse(27, 24, 42, 27, { roughness: 1, fill: "#E74C3C", fillStyle: "solid", stroke: "#2C3E50", strokeWidth: 2 });
+          rc.circle(17, 17, 6, { roughness: 0.8, fill: "#FFF", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.circle(34, 17, 6, { roughness: 0.8, fill: "#FFF", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.circle(18, 18, 2, { roughness: 0.5, fill: "#2C3E50", fillStyle: "solid" });
+          rc.circle(35, 18, 2, { roughness: 0.5, fill: "#2C3E50", fillStyle: "solid" });
+          rc.ellipse(16, 38, 11, 7, { roughness: 1, fill: "#8B5E3C", fillStyle: "solid", stroke: "#2C3E50" });
+          rc.ellipse(36, 38, 11, 7, { roughness: 1, fill: "#8B5E3C", fillStyle: "solid", stroke: "#2C3E50" });
+        }
+      });
+    }
+
+    function loadRoughSprites() {
+      const sprites = {
+        catIdle: catFrameDataURL("idle", 0),
+        catWalk1: catFrameDataURL("walk", 0),
+        catWalk2: catFrameDataURL("walk", 1),
+        catJump: catFrameDataURL("jump", 0),
+        catFall: catFrameDataURL("fall", 0),
+        fish: fishDataURL(),
+        ground: tileDataURL("ground"),
+        block: tileDataURL("block"),
+        pipe: tileDataURL("pipe"),
+        spike: tileDataURL("spike"),
+        flag: tileDataURL("flag"),
+        platform: tileDataURL("platform"),
+        crow: enemyDataURL("crow"),
+        dog: enemyDataURL("dog"),
+        boss: enemyDataURL("boss"),
+      };
+      for (const [name, url] of Object.entries(sprites)) loadSprite(name, url);
+      state.titleCatURL = sprites.catIdle;
+    }
+
+    loadRoughSprites();
+
+    function startAudio() {
+      if (!state.audioContext) {
+        state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (state.audioContext.state === "suspended") state.audioContext.resume();
+      state.audioReady = true;
+    }
+
+    function startMusic(index = 0) {
+      startAudio();
+      const chosen = MUSIC[index % MUSIC.length];
+      if (state.music && state.music.dataset.name === chosen.name) return;
+      if (state.music) {
+        state.music.pause();
+        state.music = null;
+      }
+      const audio = new Audio(chosen.url);
+      audio.dataset.name = chosen.name;
+      audio.loop = true;
+      audio.volume = 0.34;
+      audio.play().catch(() => {});
+      state.music = audio;
+    }
+
+    function sfx(type) {
+      if (!state.audioReady || !state.audioContext) return;
+      const ctx = state.audioContext;
+      const now = ctx.currentTime;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.07, now + 0.01);
+      gain.connect(ctx.destination);
+      const osc = ctx.createOscillator();
+      osc.connect(gain);
+      const cfg = {
+        jump: ["sine", 440, 660, 0.10],
+        collect: ["sine", 880, 1320, 0.08],
+        stomp: ["square", 220, 120, 0.05],
+        hurt: ["sawtooth", 150, 80, 0.20],
+        land: ["sine", 200, 180, 0.03],
+        meow: ["sine", 600, 800, 0.30],
+      }[type];
+      if (!cfg) return;
+      osc.type = cfg[0];
+      osc.frequency.setValueAtTime(cfg[1], now);
+      if (type === "meow") {
+        osc.frequency.linearRampToValueAtTime(400, now + 0.14);
+        osc.frequency.linearRampToValueAtTime(800, now + cfg[3]);
+      } else {
+        osc.frequency.linearRampToValueAtTime(cfg[2], now + cfg[3]);
+      }
+      gain.gain.exponentialRampToValueAtTime(0.001, now + cfg[3]);
+      osc.start(now);
+      osc.stop(now + cfg[3] + 0.02);
+    }
+
+    function setOverlay(html, mode = "title") {
+      UI.innerHTML = html;
+      UI.style.display = html ? "grid" : "none";
+      const card = UI.firstElementChild;
+      if (!card) return;
+      if (mode === "title") {
+        const titleCat = UI.querySelector(".title-cat");
+        if (titleCat) titleCat.style.backgroundImage = `url(${state.titleCatURL})`;
+        const timeline = createTimeline({ defaults: { ease: "outElastic(1, .7)" } });
+        timeline.add(".title-cat", { translateX: [-260, 0], rotate: [-15, 0], duration: 850 })
+          .add(".title-card h1", { scale: [0.45, 1], opacity: [0, 1], duration: 700 }, "-=420")
+          .add(".prompt", { scale: [0.92, 1.08], loop: true, alternate: true, duration: 780, ease: "inOutSine" }, "-=180");
+      } else {
+        animate(card, { scale: [0.8, 1], opacity: [0, 1], duration: 460, ease: "outElastic(1, .75)" });
+      }
+    }
+
+    function clearOverlay() {
+      const child = UI.firstElementChild;
+      if (!child) {
+        UI.style.display = "none";
+        return;
+      }
+      animate(child, { opacity: 0, scale: 0.94, duration: 160, ease: "inQuad", onComplete: () => {
+        UI.innerHTML = "";
+        UI.style.display = "none";
+      }});
+    }
+
+    function touchBinding() {
+      document.querySelectorAll("[data-touch]").forEach((button) => {
+        const key = button.dataset.touch;
+        const set = (down, ev) => {
+          ev.preventDefault();
+          startAudio();
+          state.keys[key] = down;
+          button.classList.toggle("is-down", down);
+        };
+        button.addEventListener("pointerdown", (ev) => set(true, ev));
+        button.addEventListener("pointerup", (ev) => set(false, ev));
+        button.addEventListener("pointercancel", (ev) => set(false, ev));
+        button.addEventListener("pointerleave", (ev) => set(false, ev));
+      });
+    }
+    touchBinding();
+
+    function drawBackground(theme, levelWidth) {
+      const sky = add([rect(levelWidth, height()), pos(0, 0), color(theme === "palace" ? 174 : 135, theme === "palace" ? 154 : 206, theme === "palace" ? 194 : 235), z(-100)]);
+      const farColor = theme === "roof" ? [116, 132, 150] : theme === "palace" ? [202, 184, 142] : [118, 170, 126];
+      for (let x = -80; x < levelWidth + 400; x += 260) {
+        add([circle(rand(42, 82)), pos(x, rand(95, 170)), color(farColor[0], farColor[1], farColor[2]), opacity(0.35), z(-80), "parallaxFar"]);
+      }
+      for (let x = 80; x < levelWidth + 400; x += 190) {
+        const obj = add([sprite(theme === "roof" ? "pipe" : "platform"), pos(x, LEVEL_Y - rand(86, 134)), scale(theme === "roof" ? 1.2 : 0.9), opacity(0.30), z(-60), "parallaxNear"]);
+        obj.use(area({ collisionIgnore: ["player"] }));
+      }
+      loop(0.18, () => {
+        const currentCam = getCamPos ? getCamPos() : camPos();
+        const leaf = add([circle(rand(2, 4)), pos(currentCam.x + rand(-width() / 2, width() / 2), rand(20, 260)), color(255, 246, 176), opacity(0.38), z(40), "particle"]);
+        tween(leaf.pos, leaf.pos.add(rand(-30, 30), rand(24, 56)), rand(1.5, 2.6), (p) => leaf.pos = p, k.easings.easeOutSine);
+        wait(2.6, () => destroy(leaf));
+      });
+      return sky;
+    }
+
+    function puffDust(at) {
+      for (let i = 0; i < 7; i++) {
+        const dust = add([circle(rand(3, 6)), pos(at.x + rand(-13, 13), at.y + rand(-2, 5)), color(139, 94, 60), opacity(0.5), z(50)]);
+        tween(dust.pos, dust.pos.add(rand(-25, 25), rand(-18, -4)), 0.35, (p) => dust.pos = p, k.easings.easeOutQuad);
+        tween(dust.opacity, 0, 0.35, (v) => dust.opacity = v, k.easings.easeOutQuad);
+        wait(0.36, () => destroy(dust));
+      }
+    }
+
+    function floatingText(label, at) {
+      const t = add([text(label, { size: 22, font: "sans-serif" }), pos(at), color(255, 255, 255), outline(3, k.rgb(44, 62, 80)), z(200)]);
+      tween(t.pos, t.pos.add(0, -46), 0.8, (p) => t.pos = p, k.easings.easeOutQuad);
+      tween(t.opacity, 0, 0.8, (v) => t.opacity = v, k.easings.easeOutQuad);
+      wait(0.82, () => destroy(t));
+    }
+
+    function addHud(levelName) {
+      const lives = add([text(`♥ ${state.lives}`, { size: 24, font: "sans-serif" }), pos(18, 16), fixed(), z(300), color(255, 107, 107), outline(3, k.rgb(255, 255, 255)), "livesText"]);
+      const level = add([text(levelName, { size: 24, font: "sans-serif" }), pos(width() / 2 - 35, 16), fixed(), z(300), color(44, 62, 80), outline(3, k.rgb(255, 255, 255))]);
+      const score = add([text(`鱼 ${state.score}`, { size: 24, font: "sans-serif" }), pos(width() - 118, 16), fixed(), z(300), color(44, 62, 80), outline(3, k.rgb(255, 255, 255)), "scoreText"]);
+      return { lives, level, score };
+    }
+
+    function refreshHud(hud) {
+      hud.lives.text = `♥ ${state.lives}`;
+      hud.score.text = `鱼 ${state.score}`;
+      hud.score.scale = vec2(1.28);
+      tween(hud.score.scale, vec2(1), 0.18, (v) => hud.score.scale = v, k.easings.easeOutBack);
+    }
+
+    function hurtPlayer(player, hud, knock = 1) {
+      if (state.invincible) return;
+      state.lives -= 1;
+      refreshHud(hud);
+      sfx("hurt");
+      state.invincible = true;
+      player.vel.x = -knock * 260;
+      player.jump(330);
+      let flashes = 0;
+      const flasher = loop(0.09, () => {
+        player.opacity = player.opacity === 1 ? 0.25 : 1;
+        flashes += 1;
+        if (flashes >= 10) {
+          flasher.cancel();
+          player.opacity = 1;
+          state.invincible = false;
+        }
+      });
+      const base = hud.lives.pos.clone();
+      tween(hud.lives.pos, base.add(9, 0), 0.06, (p) => hud.lives.pos = p, k.easings.easeOutQuad);
+      wait(0.07, () => tween(hud.lives.pos, base.add(-7, 0), 0.07, (p) => hud.lives.pos = p, k.easings.easeOutQuad));
+      wait(0.16, () => hud.lives.pos = base);
+      if (state.lives <= 0) wait(0.55, () => go("gameover"));
+    }
+
+    function setupEnemy(enemy, speed = 64) {
+      enemy.dir = -1;
+      enemy.hp = enemy.is("boss") ? 3 : 1;
+      enemy.onUpdate(() => {
+        enemy.move(enemy.dir * speed, 0);
+        if (enemy.pos.x < enemy.startX - enemy.range || enemy.pos.x > enemy.startX + enemy.range) {
+          enemy.dir *= -1;
+          enemy.flipX = enemy.dir > 0;
+        }
+      });
+      enemy.onCollide("wall", () => {
+        enemy.dir *= -1;
+        enemy.flipX = enemy.dir > 0;
+      });
+    }
+
+    function gameScene(levelIndex) {
+      state.level = levelIndex;
+      const levelData = levels[levelIndex];
+      clearOverlay();
+      document.querySelector('[data-touch="jump"]').onclick = null;
+      startMusic(levelData.music);
+      if (setCamScale) setCamScale(1);
+      else camScale(1);
+      const hud = addHud(levelData.name);
+
+      const level = addLevel(levelData.map, {
+        tileWidth: TILE,
+        tileHeight: TILE,
+        pos: vec2(0, LEVEL_Y - (levelData.map.length - 1) * TILE),
+        tiles: {
+          "=": () => [sprite("ground"), area(), body({ isStatic: true }), "ground", "wall"],
+          "?": () => [sprite("block"), area(), body({ isStatic: true }), "block", "wall"],
+          "|": () => [sprite("pipe"), area(), body({ isStatic: true }), "pipe", "wall"],
+          "S": () => [sprite("spike"), area(), "spike"],
+          "%": () => [sprite("fish"), area(), scale(1), "fish"],
+          "^": () => [sprite("crow"), area(), body(), "enemy", "crow", { startX: 0, range: 96 }],
+          "D": () => [sprite("dog"), area(), body(), "enemy", "dog", { startX: 0, range: 120 }],
+          "B": () => [sprite("boss"), area(), body(), scale(1), "enemy", "boss", { startX: 0, range: 150 }],
+          "F": () => [sprite("flag"), area(), body({ isStatic: true }), "flag"],
+          "P": () => [sprite("platform"), area(), body({ isStatic: true }), "movingPlatform", "wall", { startX: 0, dir: 1 }],
+          "@": () => [rect(1, 1), opacity(0), area(), "start"],
+          "o": () => [sprite("block"), area(), body({ isStatic: true }), "block", "wall"],
+        },
+      });
+
+      const levelWidth = levelData.map[0].length * TILE;
+      drawBackground(levelData.theme, levelWidth);
+
+      level.get("enemy").forEach((e) => {
+        e.startX = e.pos.x;
+        setupEnemy(e, e.is("boss") ? 42 : e.is("dog") ? 76 : 58);
+      });
+      level.get("movingPlatform").forEach((p) => {
+        p.startX = p.pos.x;
+        p.onUpdate(() => {
+          p.move(p.dir * 70, 0);
+          if (p.pos.x < p.startX - 92 || p.pos.x > p.startX + 92) p.dir *= -1;
+        });
+      });
+      level.get("fish").forEach((f) => {
+        f.onUpdate(() => {
+          f.angle = Math.sin(k.time() * 5 + f.pos.x) * 6;
+          f.pos.y += Math.sin(k.time() * 4 + f.pos.x) * 0.18;
+        });
+      });
+
+      const start = level.get("start")[0];
+      const player = add([
+        sprite("catIdle"),
+        pos(start ? start.pos.x : 64, start ? start.pos.y - 20 : 260),
+        area({ shape: new k.Rect(k.vec2(7, 8), 48, 50) }),
+        body({ jumpForce: 520, gravityScale: 1 }),
+        scale(1),
+        opacity(1),
+        z(100),
+        "player",
+        {
+          speed: 0,
+          facing: 1,
+          coyote: 0,
+          buffer: 0,
+          jumpHeld: 0,
+          jumpPressedAt: -9,
+          jumpDownLast: false,
+          wasGrounded: false,
+          landingLocked: false,
+        },
+      ]);
+
+      onKeyPress("space", () => {
+        startAudio();
+        player.buffer = 0.12;
+        player.jumpPressedAt = k.time();
+      });
+      onKeyDown("left", () => { startAudio(); });
+      onKeyDown("right", () => { startAudio(); });
+
+      player.onCollide("ground", () => {
+        if (!player.wasGrounded) {
+          sfx("land");
+          puffDust(player.pos.add(28, 52));
+          player.scale = vec2(1.15, 0.8);
+          player.landingLocked = true;
+          tween(player.scale, vec2(1), 0.12, (v) => player.scale = v, k.easings.easeOutBack);
+          wait(0.12, () => player.landingLocked = false);
+        }
+      });
+
+      player.onCollide("fish", (fish) => {
+        sfx("collect");
+        state.score += 1;
+        floatingText("+1", fish.pos.add(8, -12));
+        tween(fish.scale, vec2(1.6), 0.08, (v) => fish.scale = v, k.easings.easeOutQuad);
+        wait(0.08, () => {
+          tween(fish.scale, vec2(0), 0.12, (v) => fish.scale = v, k.easings.easeInQuad);
+          wait(0.13, () => destroy(fish));
+        });
+        refreshHud(hud);
+      });
+
+      player.onCollide("enemy", (enemy) => {
+        const stomping = player.vel.y > 70 && player.pos.y + 44 < enemy.pos.y + 18;
+        if (stomping) {
+          enemy.hp -= 1;
+          sfx("stomp");
+          player.jump(enemy.is("boss") ? 430 : 360);
+          enemy.scale = vec2(1.15, 0.55);
+          tween(enemy.scale, vec2(1), 0.12, (v) => enemy.scale = v, k.easings.easeOutBack);
+          if (enemy.hp <= 0) {
+            state.score += enemy.is("boss") ? 5 : 2;
+            floatingText(enemy.is("boss") ? "+5" : "+2", enemy.pos.add(8, -20));
+            wait(0.1, () => destroy(enemy));
+            refreshHud(hud);
+          }
+        } else {
+          hurtPlayer(player, hud, player.pos.x < enemy.pos.x ? 1 : -1);
+        }
+      });
+
+      player.onCollide("spike", () => hurtPlayer(player, hud, player.facing));
+      player.onCollide("flag", () => {
+        sfx("meow");
+        state.score += 10;
+        if (levelIndex < levels.length - 1) go("levelComplete", levelIndex + 1);
+        else go("win");
+      });
+
+      player.onUpdate(() => {
+        const grounded = player.isGrounded();
+        player.coyote = grounded ? 0.08 : Math.max(0, player.coyote - dt());
+        player.buffer = Math.max(0, player.buffer - dt());
+        if (state.keys.jump && !player.jumpDownLast) {
+          player.buffer = 0.12;
+          player.jumpPressedAt = k.time();
+        }
+        if (!state.keys.jump && player.jumpDownLast && player.vel.y < -120) {
+          player.vel.y *= 0.48;
+        }
+
+        const left = state.keys.left;
+        const right = state.keys.right;
+        const desired = (right ? 1 : 0) - (left ? 1 : 0);
+        const maxSpeed = 230;
+        const accel = desired ? maxSpeed / 0.30 : maxSpeed / 0.15;
+        player.speed += desired * accel * dt();
+        if (!desired) {
+          const sign = Math.sign(player.speed);
+          player.speed -= sign * accel * dt();
+          if (Math.sign(player.speed) !== sign) player.speed = 0;
+        }
+        player.speed = Math.max(-maxSpeed, Math.min(maxSpeed, player.speed));
+        player.move(player.speed, 0);
+
+        if (desired) {
+          player.facing = desired;
+          player.flipX = desired < 0;
+        }
+
+        if (player.buffer > 0 && player.coyote > 0) {
+          player.buffer = 0;
+          player.coyote = 0;
+          player.scale = vec2(0.9, 1.16);
+          tween(player.scale, vec2(1), 0.16, (v) => player.scale = v, k.easings.easeOutBack);
+          wait(0.08, () => player.jump(540));
+          sfx("jump");
+        }
+        if (state.keys.jump && player.vel.y < -70 && k.time() - player.jumpPressedAt < 0.28) {
+          player.vel.y -= 620 * dt();
+        }
+
+        if (!player.landingLocked) {
+          if (!grounded) {
+            player.use(sprite(player.vel.y < 0 ? "catJump" : "catFall"));
+          } else if (Math.abs(player.speed) > 35) {
+            player.use(sprite(Math.floor(k.time() * 10) % 2 ? "catWalk1" : "catWalk2"));
+            player.angle = Math.sin(k.time() * 16) * 2.5;
+          } else {
+            player.use(sprite("catIdle"));
+            player.angle = Math.sin(k.time() * 3) * 1.2;
+            player.scale = vec2(1 + Math.sin(k.time() * 3) * 0.025, 1 - Math.sin(k.time() * 3) * 0.018);
+          }
+        }
+
+        if (player.pos.y > height() + 180) hurtPlayer(player, hud, player.facing);
+        if (player.pos.y > height() + 340 && state.lives > 0) {
+          player.pos = start.pos.add(0, -28);
+          player.vel = vec2(0);
+        }
+
+        const currentCam = getCamPos ? getCamPos() : camPos();
+        const targetX = Math.max(width() / 2, Math.min(levelWidth - width() / 2, player.pos.x + 130));
+        const nextCam = currentCam.lerp(vec2(targetX, height() / 2), Math.min(1, dt() * 4.6));
+        if (setCamPos) setCamPos(nextCam);
+        else camPos(nextCam);
+        player.jumpDownLast = state.keys.jump;
+        player.wasGrounded = grounded;
+      });
+    }
+
+    scene("title", () => {
+      state.score = 0;
+      state.lives = 3;
+      setOverlay(`
+        <div class="title-card">
+          <div class="title-cat"></div>
+          <h1>猫猫物语</h1>
+          <div class="prompt">Press SPACE / Tap Jump</div>
+        </div>
+      `, "title");
+      onKeyPress("space", () => {
+        startMusic(0);
+        sfx("meow");
+        go("game", 0);
+      });
+      const startFromTouch = () => {
+        if (UI.innerHTML) {
+          startMusic(0);
+          sfx("meow");
+          go("game", 0);
+        }
+      };
+      document.querySelector('[data-touch="jump"]').onclick = startFromTouch;
+    });
+
+    scene("game", gameScene);
+
+    scene("levelComplete", (nextLevel) => {
+      setOverlay(`
+        <div class="end-card">
+          <h1>完成!</h1>
+          <div class="prompt">鱼 ${state.score} · SPACE 继续</div>
+        </div>
+      `, "end");
+      onKeyPress("space", () => go("game", nextLevel));
+      document.querySelector('[data-touch="jump"]').onclick = () => go("game", nextLevel);
+    });
+
+    scene("gameover", () => {
+      setOverlay(`
+        <div class="end-card">
+          <h1>Game Over</h1>
+          <div class="prompt">鱼 ${state.score} · SPACE 重试</div>
+        </div>
+      `, "end");
+      onKeyPress("space", () => {
+        state.score = 0;
+        state.lives = 3;
+        go("game", 0);
+      });
+      document.querySelector('[data-touch="jump"]').onclick = () => {
+        state.score = 0;
+        state.lives = 3;
+        go("game", 0);
+      };
+    });
+
+    scene("win", () => {
+      setOverlay(`
+        <div class="end-card">
+          <h1>胜利!</h1>
+          <div class="prompt">最终鱼 ${state.score} · SPACE 再玩</div>
+        </div>
+      `, "end");
+      startMusic(0);
+      for (let i = 0; i < 36; i++) {
+        wait(i * 0.045, () => {
+          const confetti = add([rect(8, 14), pos(rand(80, width() - 80), -20), color(rand(80, 255), rand(80, 230), rand(80, 255)), rotate(rand(0, 360)), fixed(), z(500)]);
+          tween(confetti.pos, confetti.pos.add(rand(-80, 80), height() + 80), rand(1.4, 2.4), (p) => confetti.pos = p, k.easings.easeInQuad);
+          wait(2.5, () => destroy(confetti));
+        });
+      }
+      onKeyPress("space", () => {
+        state.score = 0;
+        state.lives = 3;
+        go("game", 0);
+      });
+      document.querySelector('[data-touch="jump"]').onclick = () => {
+        state.score = 0;
+        state.lives = 3;
+        go("game", 0);
+      };
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      const key = ev.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") state.keys.left = true;
+      if (key === "arrowright" || key === "d") state.keys.right = true;
+      if (key === " " || key === "arrowup" || key === "w") state.keys.jump = true;
+    });
+    document.addEventListener("keyup", (ev) => {
+      const key = ev.key.toLowerCase();
+      if (key === "arrowleft" || key === "a") state.keys.left = false;
+      if (key === "arrowright" || key === "d") state.keys.right = false;
+      if (key === " " || key === "arrowup" || key === "w") state.keys.jump = false;
+    });
+    document.addEventListener("pointerdown", startAudio, { once: true });
+    document.addEventListener("keydown", startAudio, { once: true });
+    go("title");
+  </script>
+</body>
+</html>
