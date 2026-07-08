@@ -12,7 +12,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #171717;
+      background: #3D3D3D;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -183,6 +183,13 @@
         this.cat.body.setCollideWorldBounds(false);
         this.cat.play("cat-idle");
         this.catchPoint(this.grabPoints[0]);
+
+        this.jumpArrow = this.add.text(0, 0, "▶", {
+          fontSize: "18px",
+          color: "#FFD700",
+          stroke: "#000000",
+          strokeThickness: 3
+        }).setOrigin(0.5).setDepth(15).setVisible(false);
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 150);
@@ -358,6 +365,8 @@
           this.cat.setAngle(0);
         }
 
+        this.updateJumpArrow();
+
         this.bestHeight = Math.max(this.bestHeight, Math.round((500 - this.cat.y) / 10));
         this.heightText.setText(`高度 ${this.bestHeight}m`);
       }
@@ -382,14 +391,44 @@
         this.currentGrab = null;
         this.catState = CatState.JUMP;
         this.airCatchUsed = false;
+        this.jumpArrow.setVisible(false);
         this.cat.body.allowGravity = true;
         this.cat.setVelocity(direction * JUMP_VX, JUMP_VY);
         this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
       }
 
       handleCatRelativeJump() {
-        const direction = this.cat.x < GAME_WIDTH / 2 ? 1 : -1;
+        const nextPoint = this.getNextGrabPoint();
+        const direction = nextPoint ? Math.sign(nextPoint.x - this.cat.x) || 1 : (this.cat.x < GAME_WIDTH / 2 ? 1 : -1);
         this.handleJump(direction);
+      }
+
+      getNextGrabPoint() {
+        if (!this.currentGrab) {
+          return null;
+        }
+
+        return this.grabPoints[this.currentGrab.index + 1] || null;
+      }
+
+      updateJumpArrow() {
+        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+          this.jumpArrow.setVisible(false);
+          return;
+        }
+
+        const nextPoint = this.getNextGrabPoint();
+        if (!nextPoint) {
+          this.jumpArrow.setVisible(false);
+          return;
+        }
+
+        const isLeft = nextPoint.x < this.cat.x;
+        this.jumpArrow
+          .setText(isLeft ? "◀" : "▶")
+          .setPosition(this.cat.x + (isLeft ? -30 : 30), this.cat.y - 10)
+          .setAlpha(0.7 + Math.sin(this.time.now / 160) * 0.3)
+          .setVisible(true);
       }
 
       tryCatch() {
