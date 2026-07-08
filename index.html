@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>猫爬架 V6</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #171717;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #game {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script>
+    const GAME_WIDTH = 390;
+    const GAME_HEIGHT = 690;
+    const GRAVITY = 900;
+    const JUMP_VX = 280;
+    const JUMP_VY = -420;
+    const CATCH_RADIUS = 20;
+    const MAX_FALL_SPEED = 500;
+    const POINT_COUNT = 80;
+    const WORLD_TOP = -12000;
+    const WORLD_HEIGHT = 13000;
+
+    const CatState = {
+      IDLE: "IDLE",
+      JUMP: "JUMP",
+      FALLING: "FALLING",
+      CATCHING: "CATCHING",
+      DEATH: "DEATH"
+    };
+
+    function makeCanvas(width, height) {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      return { canvas, ctx };
+    }
+
+    function px(ctx, x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function drawCatFrame(ctx, ox, frame) {
+      const fur = "#FF9F43";
+      const stripe = "#D97730";
+      const belly = "#FFF3E0";
+      const eye = "#2D5A27";
+      const pink = "#FF9EBB";
+      const dark = "#3B2417";
+      const hang = frame === 1;
+      const jumpLeft = frame === 2;
+      const jumpRight = frame === 3;
+      const fall = frame === 4;
+      const airCatch = frame === 5;
+      const lean = jumpLeft ? -2 : jumpRight ? 2 : 0;
+      const bodyY = hang ? 13 : airCatch ? 12 : 14;
+      const headY = hang ? 5 : airCatch ? 4 : fall ? 6 : 5;
+
+      if (hang) {
+        px(ctx, ox + 10, 3, 3, 10, fur);
+        px(ctx, ox + 20, 3, 3, 10, fur);
+        px(ctx, ox + 9, 1, 5, 3, pink);
+        px(ctx, ox + 19, 1, 5, 3, pink);
+      } else if (airCatch) {
+        px(ctx, ox + 8, 2, 3, 9, fur);
+        px(ctx, ox + 22, 2, 3, 9, fur);
+        px(ctx, ox + 7, 0, 5, 3, pink);
+        px(ctx, ox + 21, 0, 5, 3, pink);
+      }
+
+      const tailX = jumpLeft ? 23 : jumpRight ? 4 : 3;
+      const tailY = hang ? 19 : fall ? 18 : airCatch ? 20 : 17;
+      px(ctx, ox + tailX, tailY, 5, 4, fur);
+      px(ctx, ox + tailX + (jumpLeft ? 4 : -3), tailY + 3, 5, 4, fur);
+      px(ctx, ox + tailX + (jumpLeft ? 7 : -5), tailY + 6, 4, 3, stripe);
+
+      px(ctx, ox + 9 + lean, bodyY, 14, 12, fur);
+      px(ctx, ox + 12 + lean, bodyY + 4, 8, 8, belly);
+      px(ctx, ox + 11 + lean, bodyY + 1, 10, 2, stripe);
+      px(ctx, ox + 10 + lean, bodyY + 10, 4, 5, fur);
+      px(ctx, ox + 19 + lean, bodyY + 10, 4, 5, fur);
+
+      if (fall) {
+        px(ctx, ox + 5, bodyY + 3, 5, 3, fur);
+        px(ctx, ox + 22, bodyY + 3, 5, 3, fur);
+        px(ctx, ox + 6, bodyY + 13, 5, 3, fur);
+        px(ctx, ox + 21, bodyY + 13, 5, 3, fur);
+      } else if (jumpLeft) {
+        px(ctx, ox + 6, bodyY + 8, 6, 3, fur);
+        px(ctx, ox + 18, bodyY + 13, 7, 3, fur);
+      } else if (jumpRight) {
+        px(ctx, ox + 20, bodyY + 8, 6, 3, fur);
+        px(ctx, ox + 7, bodyY + 13, 7, 3, fur);
+      } else if (!hang && !airCatch) {
+        px(ctx, ox + 7, bodyY + 8, 5, 3, fur);
+        px(ctx, ox + 20, bodyY + 8, 5, 3, fur);
+      }
+
+      px(ctx, ox + 9 + lean, headY + 3, 14, 10, fur);
+      px(ctx, ox + 10 + lean, headY, 4, 5, fur);
+      px(ctx, ox + 18 + lean, headY, 4, 5, fur);
+      px(ctx, ox + 11 + lean, headY + 1, 2, 2, pink);
+      px(ctx, ox + 19 + lean, headY + 1, 2, 2, pink);
+      px(ctx, ox + 12 + lean, headY + 7, 2, 2, eye);
+      px(ctx, ox + 19 + lean, headY + 7, 2, 2, eye);
+      px(ctx, ox + 16 + lean, headY + 9, 2, 2, pink);
+      px(ctx, ox + 13 + lean, headY + 4, 7, 2, stripe);
+      px(ctx, ox + 8 + lean, headY + 11, 3, 1, dark);
+      px(ctx, ox + 22 + lean, headY + 11, 3, 1, dark);
+    }
+
+    function generateCatSpritesheet(scene) {
+      if (scene.textures.exists("cat")) {
+        return;
+      }
+      const { canvas, ctx } = makeCanvas(32 * 6, 32);
+      for (let i = 0; i < 6; i += 1) {
+        drawCatFrame(ctx, i * 32, i);
+      }
+      scene.textures.addSpriteSheet("cat", canvas, {
+        frameWidth: 32,
+        frameHeight: 32
+      });
+    }
+
+    class GameScene extends Phaser.Scene {
+      constructor() {
+        super("GameScene");
+        this.grabPoints = [];
+        this.catState = CatState.IDLE;
+        this.currentGrab = null;
+        this.releasedGrab = null;
+        this.airCatchUsed = false;
+        this.bestHeight = 0;
+      }
+
+      preload() {
+        generateCatSpritesheet(this);
+      }
+
+      create() {
+        this.physics.world.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
+        this.createAnimations();
+        this.createRooms();
+        this.generateGrabPoints();
+        this.drawGrabPoints();
+
+        this.cat = this.physics.add.sprite(195, 500, "cat", 0);
+        this.cat.setDisplaySize(48, 48);
+        this.cat.setDepth(10);
+        this.cat.body.setSize(24, 30);
+        this.cat.body.setOffset(4, 2);
+        this.cat.body.setCollideWorldBounds(false);
+        this.cat.play("cat-idle");
+        this.catchPoint(this.grabPoints[0]);
+
+        this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
+        this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 150);
+        this.cameras.main.setDeadzone(GAME_WIDTH, 170);
+
+        this.heightText = this.add.text(GAME_WIDTH / 2, 16, "高度 0m", {
+          fontFamily: "monospace",
+          fontSize: "20px",
+          fontStyle: "700",
+          color: "#ffffff",
+          stroke: "#151515",
+          strokeThickness: 4
+        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
+
+        this.input.on("pointerdown", (pointer) => {
+          this.handleJump(pointer.x < GAME_WIDTH / 2 ? -1 : 1);
+        });
+
+        this.keys = this.input.keyboard.addKeys({
+          left: Phaser.Input.Keyboard.KeyCodes.A,
+          arrowLeft: Phaser.Input.Keyboard.KeyCodes.LEFT,
+          right: Phaser.Input.Keyboard.KeyCodes.D,
+          arrowRight: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        });
+      }
+
+      createAnimations() {
+        if (this.anims.exists("cat-idle")) {
+          return;
+        }
+        this.anims.create({
+          key: "cat-idle",
+          frames: [{ key: "cat", frame: 0 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-hang",
+          frames: [{ key: "cat", frame: 1 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-jump-left",
+          frames: [{ key: "cat", frame: 2 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-jump-right",
+          frames: [{ key: "cat", frame: 3 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-fall",
+          frames: [{ key: "cat", frame: 4 }],
+          frameRate: 1
+        });
+        this.anims.create({
+          key: "cat-air-catch",
+          frames: [{ key: "cat", frame: 5 }],
+          frameRate: 1
+        });
+      }
+
+      createRooms() {
+        const roomHeight = 720;
+        const topRoom = Math.floor(Math.abs(WORLD_TOP) / roomHeight) + 1;
+        for (let i = 0; i <= topRoom; i += 1) {
+          const y = 690 - (i + 1) * roomHeight;
+          const roomId = i % 2;
+          if (roomId === 0) {
+            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, 0x3d3d3d)
+              .setDepth(-20);
+            for (let lineY = y + 38; lineY < y + roomHeight; lineY += 46) {
+              this.add.rectangle(195, lineY, GAME_WIDTH, 2, 0x555555).setDepth(-19);
+            }
+            for (let lineY = y + 61; lineY < y + roomHeight; lineY += 92) {
+              for (let x = 36; x < GAME_WIDTH; x += 96) {
+                this.add.rectangle(x, lineY, 2, 24, 0x505050).setDepth(-19);
+              }
+            }
+          } else {
+            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, 0xfff8e7)
+              .setDepth(-20);
+            this.add.rectangle(292, y + 170, 58, 76, 0x9ad7f5).setDepth(-19);
+            this.add.rectangle(292, y + 170, 64, 6, 0xd8c39a).setDepth(-18);
+            this.add.rectangle(292, y + 170, 6, 82, 0xd8c39a).setDepth(-18);
+            this.add.rectangle(292, y + 130, 64, 6, 0xd8c39a).setDepth(-18);
+            this.add.rectangle(292, y + 210, 64, 6, 0xd8c39a).setDepth(-18);
+            this.add.rectangle(96, y + 512, 156, 16, 0xd6a356).setDepth(-19);
+            this.add.rectangle(96, y + 548, 156, 56, 0xf0c06d).setDepth(-19);
+            this.add.rectangle(96, y + 548, 126, 4, 0xb9863c).setDepth(-18);
+          }
+        }
+      }
+
+      generateGrabPoints() {
+        this.grabPoints = [];
+        let side = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
+        let x = 195;
+        let y = 500;
+
+        for (let i = 0; i < POINT_COUNT; i += 1) {
+          if (i > 0) {
+            side *= -1;
+            const horizontalGap = Phaser.Math.Between(60, 140);
+            const flightTime = horizontalGap / JUMP_VX;
+            const jumpRise = -(JUMP_VY * flightTime + 0.5 * GRAVITY * flightTime * flightTime);
+            x = Phaser.Math.Clamp(x + horizontalGap * side, 44, GAME_WIDTH - 44);
+            y -= Math.round(jumpRise + Phaser.Math.Between(-8, 8));
+          }
+
+          this.grabPoints.push({
+            x,
+            y,
+            side,
+            roomId: Math.floor(i / 12) % 2,
+            index: i
+          });
+        }
+      }
+
+      drawGrabPoints() {
+        this.pointGroup = this.add.group();
+        this.grabPoints.forEach((point) => {
+          if (point.roomId === 0) {
+            const pipe = this.add.rectangle(point.x, point.y, 28, 9, 0x8b5a2b)
+              .setStrokeStyle(2, 0x4f331d);
+            const boltA = this.add.circle(point.x - 8, point.y, 2, 0xd2b48c);
+            const boltB = this.add.circle(point.x + 8, point.y, 2, 0xd2b48c);
+            this.pointGroup.addMultiple([pipe, boltA, boltB]);
+          } else {
+            const handle = this.add.circle(point.x, point.y, 9, 0xd4af37)
+              .setStrokeStyle(2, 0x8b6f18);
+            const shine = this.add.circle(point.x - 3, point.y - 3, 2, 0xffe58f);
+            this.pointGroup.addMultiple([handle, shine]);
+          }
+        });
+      }
+
+      update() {
+        if (Phaser.Input.Keyboard.JustDown(this.keys.left) || Phaser.Input.Keyboard.JustDown(this.keys.arrowLeft)) {
+          this.handleJump(-1);
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.keys.right) || Phaser.Input.Keyboard.JustDown(this.keys.arrowRight)) {
+          this.handleJump(1);
+        }
+
+        if (this.catState === CatState.JUMP && this.cat.body.velocity.y > 50) {
+          this.catState = CatState.FALLING;
+          this.cat.play("cat-fall");
+        }
+
+        if (this.catState === CatState.FALLING || this.catState === CatState.JUMP) {
+          this.tryCatch();
+        }
+
+        if (this.cat.y > this.cameras.main.scrollY + GAME_HEIGHT + 100 && this.catState !== CatState.DEATH) {
+          this.catState = CatState.DEATH;
+          this.scene.restart();
+          return;
+        }
+
+        if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
+          this.cat.setAngle(Math.sin(this.time.now / 170) * 2);
+        } else {
+          this.cat.setAngle(0);
+        }
+
+        this.bestHeight = Math.max(this.bestHeight, Math.round((500 - this.cat.y) / 10));
+        this.heightText.setText(`高度 ${this.bestHeight}m`);
+      }
+
+      handleJump(direction) {
+        if (this.catState === CatState.DEATH) {
+          return;
+        }
+
+        if (this.catState === CatState.FALLING && !this.airCatchUsed) {
+          this.airCatchUsed = true;
+          this.cat.setVelocity(this.cat.body.velocity.x * 0.55, -300);
+          this.cat.play("cat-air-catch");
+          return;
+        }
+
+        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+          return;
+        }
+
+        this.releasedGrab = this.currentGrab;
+        this.currentGrab = null;
+        this.catState = CatState.JUMP;
+        this.airCatchUsed = false;
+        this.cat.body.allowGravity = true;
+        this.cat.setVelocity(direction * JUMP_VX, JUMP_VY);
+        this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
+      }
+
+      tryCatch() {
+        if (this.cat.body.velocity.y >= MAX_FALL_SPEED) {
+          return;
+        }
+
+        let closest = null;
+        let closestDistance = Infinity;
+        for (const point of this.grabPoints) {
+          if (point === this.currentGrab || point === this.releasedGrab) {
+            continue;
+          }
+          const dx = this.cat.x - point.x;
+          const dy = this.cat.y - point.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance <= CATCH_RADIUS && distance < closestDistance) {
+            closest = point;
+            closestDistance = distance;
+          }
+        }
+
+        if (closest) {
+          this.catchPoint(closest);
+        }
+      }
+
+      catchPoint(point) {
+        this.currentGrab = point;
+        this.releasedGrab = null;
+        this.catState = CatState.CATCHING;
+        this.cat.setPosition(point.x, point.y + 9);
+        this.cat.setVelocity(0, 0);
+        this.cat.body.allowGravity = false;
+        this.cat.play("cat-hang");
+        this.time.delayedCall(90, () => {
+          if (this.catState === CatState.CATCHING) {
+            this.catState = CatState.IDLE;
+          }
+        });
+      }
+    }
+
+    window.catClimbGame = new Phaser.Game({
+      type: Phaser.AUTO,
+      parent: "game",
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+      backgroundColor: "#3D3D3D",
+      pixelArt: true,
+      physics: {
+        default: "arcade",
+        arcade: {
+          gravity: { y: GRAVITY },
+          debug: false
+        }
+      },
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      },
+      scene: GameScene
+    });
+  </script>
+</body>
+</html>
