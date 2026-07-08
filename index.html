@@ -129,56 +129,59 @@
     const LEVELS = [
       {
         name: "花园",
+        theme: "garden",
         skyTop: "#87CEEB",
         skyBottom: "#B7E6FF",
         ground: "#7EC850",
         earth: "#8B5E3C",
         map: [
+          "   c                         c                         c                         ",
           "                                                                                 ",
-          "                                                                                 ",
-          "       %                 %                    %                     %          F ",
-          "                                                                                 ",
-          "  @                      ^                                                       ",
-          "   B========B     B==============B       B==========B       B==========B          ",
-          "                                                                                 ",
-          "===========          ====================       ========================          ",
-          "                                                                                 ",
-          "===========     ========================================================   ======="
+          "        %                %                %           F                          ",
+          "                                                       c                         ",
+          "  @                                                                     t        ",
+          "   B====B   B====B        B==B    B====B     B====B    B======B         g        ",
+          "       g       %                    %                              %             ",
+          "=====    ===========    ========    ==========  ==============       =====       ",
+          "    g                               ^                           ^                ",
+          "=====  ========================================================   ==============="
         ]
       },
       {
         name: "屋顶",
+        theme: "rooftop",
         skyTop: "#6AB0D8",
         skyBottom: "#D3F1FF",
         ground: "#8AA1B1",
         earth: "#5D6975",
         map: [
+          "      c                          c                         c                                      ",
           "                                                                                                  ",
-          "                                                                                                  ",
-          "      %                %                 %                %                 %                  F  ",
-          "                                                                                                  ",
-          "  @               ^                         D                                      ^             ",
-          "   B======B   B========B      M        B==========B       B====B       B================B         ",
-          "                                                                                                  ",
-          "==========       ==========        ==============       ===      ====         ===========          ",
-          "                                                                                                  ",
+          "      %                %                 %             c                       %            F      ",
+          "                                          B==B                                            B==B     ",
+          "  @          ^              B==B          %             D                         ^        g       ",
+          "   B======B   B======B                   B==B       B==========B       B====B       B======B       ",
+          "                         B==B                         g                  M                         ",
+          "==========       ==========        ==============       ===      ====         ===========           ",
+          "                  %        D            ^                                           %             ",
           "==========   ==============   ===================   ==================   ===================  ===="
         ]
       },
       {
         name: "皇宫",
+        theme: "palace",
         skyTop: "#B8A1E3",
         skyBottom: "#F3D6FF",
         ground: "#C8A87C",
         earth: "#6F4E37",
         map: [
+          "      c                         c                         c                                       ",
           "                                                                                                  ",
-          "                                                                                                  ",
-          "      %               %                  %                 %                   %               F  ",
-          "                                                                                                  ",
-          "  @                 ^                         D                         C                         ",
+          "      %               %                  %                 %                   %            F      ",
+          "                                                                                       B====B     ",
+          "  @                 ^                         D                %        C              g           ",
           "   B======B    B=========B      B=====B    B==========B        B====================B              ",
-          "                                                                                                  ",
+          "                              %                 S                  S                               ",
           "==========   ====     ====   ====   ====        =======   ====      ====      ======              ",
           "             SSSS            SSSS   SSSS                  SSSS      SSSS                         ",
           "==========   ====   ==============   ==================   ===============================   ======="
@@ -367,6 +370,55 @@
       return canvas;
     }
 
+    function generateGrassDeco() {
+      const { canvas, ctx } = makeCanvas(TILE, TILE);
+      px(ctx, 4, 26, 6, 8, "#3FA34D");
+      px(ctx, 11, 22, 5, 12, "#58C96B");
+      px(ctx, 17, 27, 7, 7, "#2F8F45");
+      px(ctx, 26, 23, 5, 11, "#58C96B");
+      px(ctx, 31, 28, 5, 6, "#3FA34D");
+      px(ctx, 9, 20, 3, 3, "#FFE66D");
+      px(ctx, 23, 22, 3, 3, "#FF8FAB");
+      px(ctx, 33, 25, 3, 3, "#FFFFFF");
+      return canvas;
+    }
+
+    function generateTreeTexture() {
+      const { canvas, ctx } = makeCanvas(54, 76);
+      px(ctx, 23, 36, 9, 35, "#7A4E2A");
+      px(ctx, 15, 49, 25, 8, "#8B5E3C");
+      px(ctx, 12, 18, 30, 28, "#2F9E44");
+      px(ctx, 5, 30, 22, 22, "#45B85A");
+      px(ctx, 28, 29, 22, 23, "#3AA64D");
+      px(ctx, 17, 8, 22, 22, "#58C96B");
+      px(ctx, 24, 44, 7, 7, "#2A7F3A");
+      return canvas;
+    }
+
+    function generateCloudTexture() {
+      const { canvas, ctx } = makeCanvas(70, 34);
+      px(ctx, 8, 17, 52, 11, "rgba(255,255,255,0.88)");
+      px(ctx, 18, 9, 22, 16, "rgba(255,255,255,0.9)");
+      px(ctx, 36, 13, 24, 13, "rgba(255,255,255,0.82)");
+      px(ctx, 4, 22, 62, 8, "rgba(255,255,255,0.76)");
+      return canvas;
+    }
+
+    function generateDustTexture() {
+      const { canvas, ctx } = makeCanvas(8, 8);
+      px(ctx, 1, 2, 6, 4, "#A87545");
+      px(ctx, 2, 1, 3, 6, "#C3915F");
+      return canvas;
+    }
+
+    function generateSparkTexture() {
+      const { canvas, ctx } = makeCanvas(8, 8);
+      px(ctx, 3, 0, 2, 8, "#FFD700");
+      px(ctx, 0, 3, 8, 2, "#FFD700");
+      px(ctx, 2, 2, 4, 4, "#FFF3A3");
+      return canvas;
+    }
+
     function generateSpikeTexture() {
       const { canvas, ctx } = makeCanvas(TILE, TILE);
       ctx.fillStyle = "#E74C3C";
@@ -404,6 +456,11 @@
         this.textures.addCanvas("flag", generateFlagTexture());
         this.textures.addCanvas("spike", generateSpikeTexture());
         this.textures.addCanvas("movingPlatform", generatePlatformTexture());
+        this.textures.addCanvas("grass_deco", generateGrassDeco());
+        this.textures.addCanvas("tree", generateTreeTexture());
+        this.textures.addCanvas("cloud", generateCloudTexture());
+        this.textures.addCanvas("dust", generateDustTexture());
+        this.textures.addCanvas("spark", generateSparkTexture());
         LEVELS.forEach((level, index) => {
           this.textures.addCanvas(`ground${index}`, generateTileTexture(level.ground, level.earth));
         });
@@ -474,12 +531,17 @@
         this.wasOnGround = false;
         this.respawning = false;
         this.invincible = false;
+        this.jumpSquashing = false;
+        this.skidDustTimer = 0;
+        this.cameraZoomTarget = 1;
 
         drawSky(this, this.level.skyTop, this.level.skyBottom, this.mapWidth, GAME_HEIGHT);
+        drawBackgroundLayers(this, this.level.theme, this.mapWidth, GAME_HEIGHT);
         this.physics.world.setBounds(0, 0, this.mapWidth, this.mapHeight + 220);
         this.cameras.main.setBounds(0, 0, this.mapWidth, GAME_HEIGHT);
 
         this.platforms = this.physics.add.staticGroup();
+        this.decorations = this.add.group();
         this.enemies = this.physics.add.group();
         this.fishes = this.physics.add.staticGroup();
         this.spikes = this.physics.add.staticGroup();
@@ -490,6 +552,7 @@
         this.buildLevel();
         this.createPlayer();
         this.createHud();
+        this.createFlagHint();
 
         this.physics.add.collider(this.player, this.platforms);
         this.physics.add.collider(this.player, this.movingPlatforms, (player, platform) => {
@@ -531,6 +594,7 @@
             } else if (tile === "%") {
               const fish = this.fishes.create(cx, cy, "fish");
               fish.setData("baseY", cy);
+              fish.setData("phase", Phaser.Math.FloatBetween(0, Math.PI * 2));
             } else if (tile === "^") {
               this.createEnemy("crow", cx, cy + 8, 72, 1);
             } else if (tile === "D") {
@@ -539,7 +603,10 @@
               this.createEnemy("croc", cx, cy + 5, 78, 3);
             } else if (tile === "F") {
               const flag = this.flags.create(cx, cy - 28, "flag");
-              flag.body.setSize(18, 86).setOffset(7, 8);
+              flag.body.setSize(36, 96).setOffset(0, 0);
+              flag.setData("baseX", flag.x);
+              flag.setData("baseY", flag.y);
+              this.tweens.add({ targets: flag, x: flag.x + 4, scaleX: 1.06, yoyo: true, repeat: -1, duration: 600, ease: "Sine.easeInOut" });
             } else if (tile === "S") {
               const spike = this.spikes.create(cx, cy, "spike");
               spike.body.setSize(32, 28).setOffset(4, 12);
@@ -550,6 +617,15 @@
               platform.setData("range", 110);
               platform.setData("speed", 70);
               platform.setVelocityX(70);
+            } else if (tile === "g") {
+              this.decorations.add(this.add.image(cx, cy, "grass_deco").setDepth(2));
+            } else if (tile === "t") {
+              this.decorations.add(this.add.image(cx, cy - 18, "tree").setDepth(1));
+            } else if (tile === "c") {
+              const cloud = this.add.image(cx, cy, "cloud").setDepth(1).setAlpha(0.88);
+              cloud.setData("baseX", cx);
+              cloud.setData("phase", Phaser.Math.FloatBetween(0, Math.PI * 2));
+              this.decorations.add(cloud);
             }
           });
         });
@@ -602,9 +678,95 @@
         this.tweens.add({ targets: label, alpha: 0, y: 70, delay: 1550, duration: 450, onComplete: () => label.destroy() });
       }
 
+      createFlagHint() {
+        const flag = this.flags.getChildren()[0];
+        if (!flag) return;
+        this.flagHint = this.add.text(flag.x, flag.y - 74, "▼", {
+          fontSize: "26px",
+          fontStyle: "900",
+          color: "#FF6B6B",
+          stroke: "#FFFFFF",
+          strokeThickness: 5
+        }).setOrigin(0.5).setDepth(20).setAlpha(0);
+        this.tweens.add({ targets: this.flagHint, y: this.flagHint.y - 8, yoyo: true, repeat: -1, duration: 360, ease: "Sine.easeInOut" });
+      }
+
       updateHud() {
         this.lifeText.setText("❤".repeat(state.lives));
         this.scoreText.setText(`🐟 × ${state.score}`);
+      }
+
+      updateFlagHint() {
+        if (!this.flagHint) return;
+        const flag = this.flags.getChildren()[0];
+        if (!flag) return;
+        this.flagHint.x = flag.x;
+        const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, flag.x, flag.y);
+        this.flagHint.setAlpha(distance < 260 ? 1 : 0);
+      }
+
+      updateDecorations(time) {
+        this.decorations.children.iterate((deco) => {
+          if (!deco || !deco.active || deco.texture.key !== "cloud") return;
+          deco.x = deco.getData("baseX") + Math.sin(time / 1600 + deco.getData("phase")) * 10;
+        });
+      }
+
+      updateCameraDynamics() {
+        this.cameraZoomTarget = Math.abs(this.player.body.velocity.x) > PLAYER_SPEED * 0.72 ? 1.02 : 1;
+        this.cameras.main.setZoom(Phaser.Math.Linear(this.cameras.main.zoom, this.cameraZoomTarget, 0.08));
+      }
+
+      startJumpAnticipation() {
+        if (this.jumpSquashing) return;
+        this.jumpSquashing = true;
+        this.jumpBuffer = 0;
+        this.coyoteTimer = 0;
+        this.player.setAccelerationX(0);
+        this.tweens.add({
+          targets: this.player,
+          scaleX: 1.12,
+          scaleY: 0.85,
+          duration: 60,
+          ease: "Quad.easeOut",
+          onComplete: () => {
+            if (!this.player || !this.player.active || this.respawning) return;
+            this.player.setScale(0.9, 1.12);
+            this.player.setVelocityY(JUMP_VELOCITY);
+            this.jumpHoldTimer = JUMP_HOLD_MAX_TIME;
+            playSfx("jump");
+            this.emitDust(this.player.x, this.player.y + 14, 6, this.player.flipX ? 1 : -1);
+            this.tweens.add({
+              targets: this.player,
+              scaleX: 1,
+              scaleY: 1,
+              duration: 85,
+              ease: "Back.easeOut",
+              onComplete: () => {
+                this.jumpSquashing = false;
+              }
+            });
+          }
+        });
+      }
+
+      emitDust(x, y, count, direction) {
+        for (let i = 0; i < count; i += 1) {
+          const dust = this.add.image(x, y, "dust").setDepth(18).setScale(Phaser.Math.FloatBetween(0.7, 1.2));
+          const spread = Phaser.Math.Between(18, 42) * (i % 2 === 0 ? -1 : 1);
+          const push = direction ? direction * Phaser.Math.Between(8, 22) : 0;
+          this.tweens.add({
+            targets: dust,
+            x: dust.x + spread + push,
+            y: dust.y - Phaser.Math.Between(4, 18),
+            alpha: 0,
+            scaleX: 0.25,
+            scaleY: 0.25,
+            duration: 400,
+            ease: "Quad.easeOut",
+            onComplete: () => dust.destroy()
+          });
+        }
       }
 
       update(time, deltaMs) {
@@ -612,12 +774,16 @@
         if (!this.player || this.respawning) {
           return;
         }
+        this.skidDustTimer = Math.max(0, this.skidDustTimer - dt);
 
         this.updateMovingPlatforms();
         this.updateEnemies();
         this.updateFish(time);
+        this.updateDecorations(time);
+        this.updateFlagHint();
         this.handleMovement(dt);
         this.updatePlayerAnimation();
+        this.updateCameraDynamics();
 
         if (this.player.y > this.mapHeight + 150) {
           this.killPlayer();
@@ -646,7 +812,13 @@
           this.coyoteTimer = COYOTE_TIME;
           if (!this.wasOnGround) {
             playSfx("land");
-            this.tweens.add({ targets: this.player, scaleX: 1.12, scaleY: 0.84, yoyo: true, duration: 55 });
+            this.cameras.main.shake(60, 0.002);
+            this.emitDust(this.player.x, this.player.y + 14, 8, 1);
+            this.tweens.add({ targets: this.player, scaleX: 1.2, scaleY: 0.75, yoyo: true, duration: 50 });
+          }
+          if (!leftDown && !rightDown && Math.abs(this.player.body.velocity.x) > 120 && this.skidDustTimer <= 0) {
+            this.skidDustTimer = 0.12;
+            this.emitDust(this.player.x - Math.sign(this.player.body.velocity.x) * 12, this.player.y + 14, 4, -Math.sign(this.player.body.velocity.x));
           }
         } else {
           this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
@@ -659,12 +831,7 @@
         }
 
         if (this.jumpBuffer > 0 && this.coyoteTimer > 0) {
-          this.player.setVelocityY(JUMP_VELOCITY);
-          this.jumpHoldTimer = JUMP_HOLD_MAX_TIME;
-          this.jumpBuffer = 0;
-          this.coyoteTimer = 0;
-          playSfx("jump");
-          this.tweens.add({ targets: this.player, scaleX: 0.9, scaleY: 1.12, yoyo: true, duration: 70 });
+          this.startJumpAnticipation();
         }
 
         if (jumpDown && this.jumpHoldTimer > 0 && this.player.body.velocity.y < 0) {
@@ -728,19 +895,40 @@
       updateFish(time) {
         this.fishes.children.iterate((fish) => {
           if (!fish || !fish.active) return;
-          fish.y = fish.getData("baseY") + Math.sin(time / 230 + fish.x) * 3;
+          fish.y = fish.getData("baseY") + Math.sin(time / 127.3 + fish.getData("phase")) * 6;
           fish.refreshBody();
         });
       }
 
       collectFish(player, fish) {
+        const fx = fish.x;
+        const fy = fish.y;
         fish.disableBody(true, true);
         state.score += 1;
         this.updateHud();
         playSfx("collect");
-        const pop = this.add.text(fish.x, fish.y - 10, "+1", { fontSize: "18px", fontStyle: "900", color: "#FFD700", stroke: "#2C3E50", strokeThickness: 3 }).setOrigin(0.5);
+        this.emitCollectBurst(fx, fy);
+        const pop = this.add.text(player.x, player.y - 34, "+1", { fontSize: "18px", fontStyle: "900", color: "#FFD700", stroke: "#2C3E50", strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
         this.tweens.add({ targets: pop, y: pop.y - 28, alpha: 0, duration: 650, onComplete: () => pop.destroy() });
-        this.tweens.add({ targets: this.scoreText, scaleX: 1.18, scaleY: 1.18, yoyo: true, duration: 90 });
+        this.tweens.add({ targets: [this.scoreText, this.face], scaleX: 1.18, scaleY: 1.18, yoyo: true, duration: 90 });
+      }
+
+      emitCollectBurst(x, y) {
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (Math.PI * 2 * i) / 6;
+          const spark = this.add.image(x, y, "spark").setDepth(25);
+          this.tweens.add({
+            targets: spark,
+            x: x + Math.cos(angle) * 34,
+            y: y + Math.sin(angle) * 24,
+            alpha: 0,
+            scaleX: 0.2,
+            scaleY: 0.2,
+            duration: 300,
+            ease: "Quad.easeOut",
+            onComplete: () => spark.destroy()
+          });
+        }
       }
 
       hitEnemy(player, enemy) {
@@ -751,13 +939,40 @@
           enemy.setData("health", health);
           player.setVelocityY(-310);
           playSfx("stomp");
-          this.tweens.add({ targets: enemy, scaleY: 0.55, yoyo: health > 0, duration: 75, onComplete: () => {
-            if (health <= 0 && enemy.active) {
-              enemy.disableBody(true, true);
-            } else {
-              enemy.setScale(1);
+          this.cameras.main.shake(100, 0.004);
+          this.emitDust(enemy.x, enemy.y + enemy.displayHeight * 0.25, 5, 0);
+          enemy.body.enable = false;
+          this.tweens.add({
+            targets: enemy,
+            scaleX: 1.3,
+            scaleY: 0.4,
+            duration: 80,
+            ease: "Quad.easeOut",
+            onComplete: () => {
+              if (health <= 0 && enemy.active) {
+                this.tweens.add({
+                  targets: enemy,
+                  scaleX: 0,
+                  scaleY: 0,
+                  alpha: 0,
+                  duration: 120,
+                  ease: "Back.easeIn",
+                  onComplete: () => enemy.disableBody(true, true)
+                });
+              } else {
+                this.tweens.add({
+                  targets: enemy,
+                  scaleX: 1,
+                  scaleY: 1,
+                  duration: 90,
+                  ease: "Back.easeOut",
+                  onComplete: () => {
+                    enemy.body.enable = true;
+                  }
+                });
+              }
             }
-          }});
+          });
         } else {
           this.killPlayer(enemy.x < player.x ? 1 : -1);
         }
@@ -768,6 +983,7 @@
         state.lives -= 1;
         this.updateHud();
         playSfx("hurt");
+        this.cameras.main.shake(200, 0.008);
         this.invincible = true;
         this.respawning = true;
         this.player.setAccelerationX(0);
@@ -791,6 +1007,7 @@
         if (this.respawning) return;
         this.respawning = true;
         playSfx("clear");
+        this.cameras.main.shake(300, 0.003);
         this.player.setVelocity(0, 0);
         this.player.setAccelerationX(0);
         state.level += 1;
@@ -872,6 +1089,67 @@
         scene.textures.addCanvas(key, canvas);
       }
       scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0.25, 0);
+    }
+
+    function drawBackgroundLayers(scene, theme, width, height) {
+      const key = `bg-${theme}-${width}-${height}`;
+      if (!scene.textures.exists(key)) {
+        const { canvas, ctx } = makeCanvas(width, height);
+        ctx.clearRect(0, 0, width, height);
+
+        if (theme === "garden") {
+          ctx.fillStyle = "rgba(76, 132, 86, 0.28)";
+          for (let x = -120; x < width + 220; x += 260) {
+            ctx.beginPath();
+            ctx.moveTo(x, height);
+            ctx.quadraticCurveTo(x + 130, 176, x + 280, height);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.fillStyle = "rgba(45, 102, 72, 0.30)";
+          for (let x = 40; x < width + 240; x += 330) {
+            ctx.beginPath();
+            ctx.moveTo(x, height);
+            ctx.quadraticCurveTo(x + 150, 246, x + 310, height);
+            ctx.closePath();
+            ctx.fill();
+          }
+        } else if (theme === "rooftop") {
+          ctx.fillStyle = "rgba(55, 76, 94, 0.24)";
+          for (let x = -40; x < width + 120; x += 120) {
+            const roofY = 238 + ((x / 120) % 3) * 18;
+            px(ctx, x, roofY, 92, height - roofY, "rgba(55,76,94,0.24)");
+            ctx.beginPath();
+            ctx.moveTo(x - 10, roofY);
+            ctx.lineTo(x + 46, roofY - 34);
+            ctx.lineTo(x + 104, roofY);
+            ctx.closePath();
+            ctx.fill();
+            px(ctx, x + 58, roofY - 54, 14, 30, "rgba(55,76,94,0.24)");
+          }
+          ctx.fillStyle = "rgba(39, 56, 72, 0.32)";
+          for (let x = 60; x < width + 150; x += 180) {
+            px(ctx, x, 290, 124, height - 290, "rgba(39,56,72,0.32)");
+            px(ctx, x + 76, 264, 20, 28, "rgba(39,56,72,0.32)");
+          }
+        } else {
+          ctx.fillStyle = "rgba(86, 60, 114, 0.22)";
+          for (let x = -40; x < width + 180; x += 180) {
+            px(ctx, x, 210, 34, height - 210, "rgba(86,60,114,0.22)");
+            px(ctx, x + 60, 180, 34, height - 180, "rgba(86,60,114,0.22)");
+            px(ctx, x - 10, 202, 114, 18, "rgba(86,60,114,0.22)");
+            px(ctx, x + 66, 154, 22, 22, "rgba(86,60,114,0.22)");
+          }
+          ctx.fillStyle = "rgba(111, 78, 55, 0.26)";
+          for (let x = 80; x < width + 240; x += 300) {
+            px(ctx, x, 260, 170, height - 260, "rgba(111,78,55,0.26)");
+            px(ctx, x + 118, 222, 8, 38, "rgba(255,107,107,0.32)");
+            px(ctx, x + 126, 226, 28, 16, "rgba(255,107,107,0.32)");
+          }
+        }
+        scene.textures.addCanvas(key, canvas);
+      }
+      scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0.42, 0).setDepth(0);
     }
 
     let audioCtx = null;
