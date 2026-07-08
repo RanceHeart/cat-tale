@@ -56,13 +56,15 @@
     }
 
     .touch-btn {
-      width: 76px;
-      height: 64px;
+      width: 18vmin;
+      height: 14vmin;
+      max-width: 90px;
+      max-height: 70px;
       border: 3px solid rgba(44, 62, 80, 0.42);
-      border-radius: 8px;
+      border-radius: 2vmin;
       background: var(--panel);
       color: var(--ui);
-      font-size: 24px;
+      font-size: 5vmin;
       font-weight: 900;
       box-shadow: 0 5px 0 rgba(44, 62, 80, 0.22);
       touch-action: none;
@@ -70,8 +72,10 @@
     }
 
     .touch-btn.jump {
-      width: 104px;
-      height: 76px;
+      width: 24vmin;
+      height: 17vmin;
+      max-width: 120px;
+      max-height: 85px;
       color: #ffffff;
       background: var(--accent);
       border-color: rgba(122, 35, 35, 0.42);
@@ -110,6 +114,7 @@
     const TILE = 40;
     const GAME_WIDTH = 800;
     const GAME_HEIGHT = 480;
+    const IS_TOUCH = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
 
     const state = {
       level: 0,
@@ -209,6 +214,14 @@
         });
         button.addEventListener("pointercancel", () => setValue(false));
         button.addEventListener("lostpointercapture", () => setValue(false));
+        button.addEventListener("touchstart", (event) => {
+          event.preventDefault();
+          setValue(true);
+        }, { passive: false });
+        button.addEventListener("touchend", (event) => {
+          event.preventDefault();
+          setValue(false);
+        }, { passive: false });
       });
     }
 
@@ -492,7 +505,8 @@
           strokeThickness: 8
         }).setOrigin(0.5);
         this.add.sprite(400, 238, "cat", 0).setScale(3).play("cat-idle");
-        const prompt = this.add.text(400, 344, "按 SPACE 开始", {
+        const promptText = IS_TOUCH ? "点击屏幕开始" : "按 SPACE 开始";
+        const prompt = this.add.text(400, 344, promptText, {
           fontSize: "26px",
           fontStyle: "800",
           color: "#2C3E50"
@@ -659,10 +673,11 @@
       }
 
       createHud() {
+        const hudFontSize = `${Math.round(GAME_WIDTH * 0.031)}px`;
         this.hud = this.add.container(0, 0).setScrollFactor(0).setDepth(50);
-        this.lifeText = this.add.text(18, 14, "", { fontSize: "25px", fontStyle: "900", color: "#E74C3C", stroke: "#ffffff", strokeThickness: 4 });
+        this.lifeText = this.add.text(18, 14, "", { fontSize: hudFontSize, fontStyle: "900", color: "#E74C3C", stroke: "#ffffff", strokeThickness: 4 });
         this.face = this.add.sprite(128, 27, "cat", 0).setScale(1.15);
-        this.scoreText = this.add.text(660, 14, "", { fontSize: "25px", fontStyle: "900", color: "#2C3E50", stroke: "#ffffff", strokeThickness: 4 });
+        this.scoreText = this.add.text(660, 14, "", { fontSize: hudFontSize, fontStyle: "900", color: "#2C3E50", stroke: "#ffffff", strokeThickness: 4 });
         this.hud.add([this.lifeText, this.face, this.scoreText]);
         this.updateHud();
       }
@@ -1031,7 +1046,8 @@
         this.add.sprite(400, 160, "cat", 5).setScale(3);
         this.add.text(400, 242, "游戏结束", { fontSize: "48px", fontStyle: "900", color: "#2C3E50", stroke: "#ffffff", strokeThickness: 7 }).setOrigin(0.5);
         this.add.text(400, 304, `🐟 × ${state.score}`, { fontSize: "28px", fontStyle: "900", color: "#2C3E50" }).setOrigin(0.5);
-        this.add.text(400, 366, "按 SPACE 重试", { fontSize: "24px", fontStyle: "800", color: "#2C3E50" }).setOrigin(0.5);
+        const promptText = IS_TOUCH ? "点击屏幕重试" : "按 SPACE 重试";
+        this.add.text(400, 366, promptText, { fontSize: "24px", fontStyle: "800", color: "#2C3E50" }).setOrigin(0.5);
         this.input.keyboard.once("keydown-SPACE", () => {
           state.level = 0;
           state.lives = 3;
@@ -1057,12 +1073,19 @@
         this.add.sprite(400, 152, "cat", 0).setScale(3).play("cat-idle");
         this.add.text(400, 238, "通关成功", { fontSize: "50px", fontStyle: "900", color: "#2C3E50", stroke: "#ffffff", strokeThickness: 7 }).setOrigin(0.5);
         this.add.text(400, 300, `最终分数  🐟 × ${state.score}`, { fontSize: "28px", fontStyle: "900", color: "#2C3E50" }).setOrigin(0.5);
-        this.add.text(400, 366, "按 SPACE 再玩一次", { fontSize: "24px", fontStyle: "800", color: "#2C3E50" }).setOrigin(0.5);
+        const promptText = IS_TOUCH ? "点击屏幕再玩一次" : "按 SPACE 再玩一次";
+        this.add.text(400, 366, promptText, { fontSize: "24px", fontStyle: "800", color: "#2C3E50" }).setOrigin(0.5);
         for (let i = 0; i < 90; i += 1) {
           const confetti = this.add.rectangle(Phaser.Math.Between(0, 800), Phaser.Math.Between(-220, 0), 7, 12, Phaser.Display.Color.RandomRGB(80, 255).color).setAngle(Phaser.Math.Between(0, 180));
           this.tweens.add({ targets: confetti, y: 540, angle: confetti.angle + Phaser.Math.Between(180, 540), duration: Phaser.Math.Between(1800, 3600), repeat: -1, delay: Phaser.Math.Between(0, 900) });
         }
         this.input.keyboard.once("keydown-SPACE", () => {
+          state.level = 0;
+          state.lives = 3;
+          state.score = 0;
+          this.scene.start("GameScene");
+        });
+        this.input.once("pointerdown", () => {
           state.level = 0;
           state.lives = 3;
           state.score = 0;
