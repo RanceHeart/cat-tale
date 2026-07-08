@@ -40,6 +40,10 @@
     const GRAVITY = 900;
     const JUMP_VX = 280;
     const JUMP_VY = -420;
+    const CHARGE_JUMP_VX = 500;
+    const CHARGE_JUMP_VY = -700;
+    const MAX_CHARGE = 1200;
+    const MIN_CHARGE = 80;
     const CATCH_RADIUS = 20;
     const MAX_FALL_SPEED = 500;
     const POINT_COUNT = 80;
@@ -49,11 +53,12 @@
     const ROOM_DARK_CSS = "#3D3D3D";
 
     const CatState = {
-      IDLE: "IDLE",
-      JUMP: "JUMP",
-      FALLING: "FALLING",
-      CATCHING: "CATCHING",
-      DEATH: "DEATH"
+      IDLE: 0,
+      JUMP: 1,
+      FALLING: 2,
+      CATCHING: 3,
+      CHARGING: 4,
+      DEATH: 5
     };
 
     function makeCanvas(width, height) {
@@ -162,6 +167,10 @@
         this.releasedGrab = null;
         this.airCatchUsed = false;
         this.bestHeight = 0;
+        this.chargeStart = 0;
+        this.chargeDirection = 1;
+        this.chargeInput = null;
+        this.keyboardChargeDirection = 0;
       }
 
       preload() {
@@ -177,12 +186,13 @@
 
         this.cat = this.physics.add.sprite(195, 500, "cat", 0);
         this.cat.setDisplaySize(48, 48);
+        this.catBaseScaleX = this.cat.scaleX;
+        this.catBaseScaleY = this.cat.scaleY;
         this.cat.setDepth(10);
         this.cat.body.setSize(24, 30);
         this.cat.body.setOffset(4, 2);
         this.cat.body.setCollideWorldBounds(false);
         this.cat.play("cat-idle");
-        this.catchPoint(this.grabPoints[0]);
 
         this.jumpArrow = this.add.text(0, 0, "▶", {
           fontSize: "18px",
@@ -190,6 +200,9 @@
           stroke: "#000000",
           strokeThickness: 3
         }).setOrigin(0.5).setDepth(15).setVisible(false);
+
+        this.chargeBar = this.add.graphics().setDepth(16).setVisible(false);
+        this.catchPoint(this.grabPoints[0]);
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 150);
@@ -204,8 +217,20 @@
           strokeThickness: 4
         }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
 
-        this.input.on("pointerdown", () => {
-          this.handleCatRelativeJump();
+        this.input.on("pointerdown", (pointer) => {
+          this.handleCatRelativeJump(pointer, "pointer");
+        });
+
+        this.input.on("pointerup", () => {
+          this.releaseChargeJump();
+        });
+
+        this.input.on("pointerupoutside", () => {
+          this.releaseChargeJump();
+        });
+
+        this.input.on("gameout", () => {
+          this.releaseChargeJump();
         });
 
         this.keys = this.input.keyboard.addKeys({
@@ -337,12 +362,7 @@
       }
 
       update() {
-        if (Phaser.Input.Keyboard.JustDown(this.keys.left) || Phaser.Input.Keyboard.JustDown(this.keys.arrowLeft)) {
-          this.handleCatRelativeJump();
-        }
-        if (Phaser.Input.Keyboard.JustDown(this.keys.right) || Phaser.Input.Keyboard.JustDown(this.keys.arrowRight)) {
-          this.handleCatRelativeJump();
-        }
+        this.updateKeyboardCharge();
 
         if (this.catState === CatState.JUMP && this.cat.body.velocity.y > 50) {
           this.catState = CatState.FALLING;
@@ -359,7 +379,9 @@
           return;
         }
 
-        if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
+        if (this.catState === CatState.CHARGING) {
+          this.updateCharge();
+        } else if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
           this.cat.setAngle(Math.sin(this.time.now / 170) * 2);
         } else {
           this.cat.setAngle(0);
@@ -371,7 +393,7 @@
         this.heightText.setText(`高度 ${this.bestHeight}m`);
       }
 
-      handleJump(direction) {
+      handleJump(direction, velocityX = JUMP_VX, velocityY = JUMP_VY) {
         if (this.catState === CatState.DEATH) {
           return;
         }
@@ -383,7 +405,11 @@
           return;
         }
 
-        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+        if (
+          this.catState !== CatState.IDLE &&
+          this.catState !== CatState.CATCHING &&
+          this.catState !== CatState.CHARGING
+        ) {
           return;
         }
 
@@ -392,43 +418,123 @@
         this.catState = CatState.JUMP;
         this.airCatchUsed = false;
         this.jumpArrow.setVisible(false);
+        this.chargeBar.clear().setVisible(false);
+        this.resetCatScale();
         this.cat.body.allowGravity = true;
-        this.cat.setVelocity(direction * JUMP_VX, JUMP_VY);
+        this.cat.setVelocity(direction * velocityX, velocityY);
         this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
       }
 
-      handleCatRelativeJump() {
-        const nextPoint = this.getNextGrabPoint();
-        const direction = nextPoint ? Math.sign(nextPoint.x - this.cat.x) || 1 : (this.cat.x < GAME_WIDTH / 2 ? 1 : -1);
-        this.handleJump(direction);
-      }
-
-      getNextGrabPoint() {
-        if (!this.currentGrab) {
-          return null;
-        }
-
-        return this.grabPoints[this.currentGrab.index + 1] || null;
+      handleCatRelativeJump(pointer, inputType = "pointer") {
+        const direction = pointer.x < GAME_WIDTH / 2 ? -1 : 1;
+        this.startChargeJump(direction, inputType);
       }
 
       updateJumpArrow() {
-        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+        if (this.catState !== CatState.CHARGING) {
           this.jumpArrow.setVisible(false);
           return;
         }
 
-        const nextPoint = this.getNextGrabPoint();
-        if (!nextPoint) {
-          this.jumpArrow.setVisible(false);
-          return;
-        }
-
-        const isLeft = nextPoint.x < this.cat.x;
+        const isLeft = this.chargeDirection < 0;
         this.jumpArrow
           .setText(isLeft ? "◀" : "▶")
           .setPosition(this.cat.x + (isLeft ? -30 : 30), this.cat.y - 10)
-          .setAlpha(0.7 + Math.sin(this.time.now / 160) * 0.3)
+          .setAlpha(0.7 + Math.sin(this.time.now / 110) * 0.3)
           .setVisible(true);
+      }
+
+      startChargeJump(direction, inputType) {
+        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+          return;
+        }
+
+        this.catState = CatState.CHARGING;
+        this.chargeStart = this.time.now;
+        this.chargeDirection = direction;
+        this.chargeInput = inputType;
+        this.cat.setVelocity(0, 0);
+        this.cat.body.allowGravity = false;
+        this.cat.setAngle(0);
+        this.updateJumpArrow();
+        this.updateCharge();
+      }
+
+      updateCharge() {
+        const chargeTime = this.time.now - this.chargeStart;
+        const t = Phaser.Math.Clamp(chargeTime / MAX_CHARGE, 0, 1);
+        const squash = Phaser.Math.Linear(1, 0.7, t);
+        const stretch = Phaser.Math.Linear(1, 1.15, t);
+
+        this.cat.setScale(this.catBaseScaleX * stretch, this.catBaseScaleY * squash);
+        this.drawChargeBar(t);
+
+        if (chargeTime >= MAX_CHARGE) {
+          this.releaseChargeJump();
+        }
+      }
+
+      drawChargeBar(t) {
+        const width = 40;
+        const height = 4;
+        const x = this.cat.x - width / 2;
+        const y = this.cat.y - 34;
+        const fillColor = t >= 0.8 ? 0xff4444 : t >= 0.5 ? 0xff8c00 : 0xffd700;
+
+        this.chargeBar
+          .clear()
+          .fillStyle(0x1b1b1b, 0.85)
+          .fillRect(x, y, width, height)
+          .fillStyle(fillColor, 1)
+          .fillRect(x, y, width * t, height)
+          .setVisible(true);
+      }
+
+      releaseChargeJump() {
+        if (this.catState !== CatState.CHARGING) {
+          return;
+        }
+
+        const chargeTime = this.time.now - this.chargeStart;
+        const t = chargeTime < MIN_CHARGE ? 0 : Phaser.Math.Clamp(chargeTime / MAX_CHARGE, 0, 1);
+        const velocityX = Phaser.Math.Linear(JUMP_VX, CHARGE_JUMP_VX, t);
+        const velocityY = Phaser.Math.Linear(JUMP_VY, CHARGE_JUMP_VY, t);
+
+        this.chargeStart = 0;
+        this.chargeInput = null;
+        this.keyboardChargeDirection = 0;
+        this.handleJump(this.chargeDirection, velocityX, velocityY);
+      }
+
+      updateKeyboardCharge() {
+        const leftDown = this.keys.left.isDown || this.keys.arrowLeft.isDown;
+        const rightDown = this.keys.right.isDown || this.keys.arrowRight.isDown;
+
+        if (this.catState === CatState.CHARGING && this.chargeInput === "keyboard") {
+          if (
+            (this.keyboardChargeDirection < 0 && !leftDown) ||
+            (this.keyboardChargeDirection > 0 && !rightDown)
+          ) {
+            this.releaseChargeJump();
+          }
+          return;
+        }
+
+        if (this.catState !== CatState.IDLE && this.catState !== CatState.CATCHING) {
+          return;
+        }
+
+        if (leftDown) {
+          this.keyboardChargeDirection = -1;
+          this.startChargeJump(-1, "keyboard");
+        } else if (rightDown) {
+          this.keyboardChargeDirection = 1;
+          this.startChargeJump(1, "keyboard");
+        }
+      }
+
+      resetCatScale() {
+        this.cat.setScale(this.catBaseScaleX, this.catBaseScaleY);
       }
 
       tryCatch() {
@@ -462,6 +568,8 @@
         this.catState = CatState.CATCHING;
         this.cat.setPosition(point.x, point.y + 9);
         this.cat.setVelocity(0, 0);
+        this.resetCatScale();
+        this.chargeBar.clear().setVisible(false);
         this.cat.body.allowGravity = false;
         this.cat.play("cat-hang");
         this.time.delayedCall(90, () => {
