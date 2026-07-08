@@ -52,6 +52,35 @@
     const ROOM_DARK_COLOR = 0x3d3d3d;
     const ROOM_DARK_CSS = "#3D3D3D";
 
+    function getZoneByY(y) {
+      const h = (500 - y) / 10;
+      if (h < 60) {
+        return 0;
+      }
+      if (h < 200) {
+        return 1;
+      }
+      if (h < 400) {
+        return 2;
+      }
+      if (h < 600) {
+        return 3;
+      }
+      if (h < 800) {
+        return 4;
+      }
+      return 5;
+    }
+
+    const ZONE_CONFIG = [
+      { name: "basement", bg1: 0x3d3d3d, bg2: 0x454545, lineColor: 0x555555, brickColor: 0x505050, grabColor: 0x8b5a2b, grabStroke: 0x4f331d, depthBg: -20, depthDecor: -19 },
+      { name: "residential", bg1: 0xfff8e7, bg2: 0xe8f4fd, lineColor: 0xd8c39a, brickColor: 0xb9863c, grabColor: 0xd4af37, grabStroke: 0x8b6f18, depthBg: -20, depthDecor: -19 },
+      { name: "attic", bg1: 0x5c4033, bg2: 0x4a3528, lineColor: 0x8b7355, brickColor: 0x7a6548, grabColor: 0xcd853f, grabStroke: 0x8b6914, depthBg: -20, depthDecor: -18 },
+      { name: "cloud", bg1: 0xb0d4f1, bg2: 0xd4e8f7, lineColor: 0xffffff, brickColor: 0x87ceeb, grabColor: 0x40e0d0, grabStroke: 0x20b2aa, depthBg: -20, depthDecor: -18 },
+      { name: "highalt", bg1: 0x1a237e, bg2: 0x0d47a1, lineColor: 0xffffff, brickColor: 0x42a5f5, grabColor: 0xffd700, grabStroke: 0xffab00, depthBg: -20, depthDecor: -18 },
+      { name: "stratosphere", bg1: 0x0d0221, bg2: 0x1a0533, lineColor: 0x7c4dff, brickColor: 0x651fff, grabColor: 0xe040fb, grabStroke: 0xaa00ff, depthBg: -20, depthDecor: -18 }
+    ];
+
     const CatState = {
       IDLE: 0,
       JUMP: 1,
@@ -313,30 +342,188 @@
 
         for (let i = 0; i <= topRoom + 1; i += 1) {
           const y = 690 - (i + 1) * roomHeight;
-          const roomId = i % 2;
-          if (roomId === 0) {
-            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, ROOM_DARK_COLOR)
-              .setDepth(-20);
-            for (let lineY = y + 38; lineY < y + roomHeight; lineY += 46) {
-              this.add.rectangle(195, lineY, GAME_WIDTH, 2, 0x555555).setDepth(-19);
-            }
-            for (let lineY = y + 61; lineY < y + roomHeight; lineY += 92) {
-              for (let x = 36; x < GAME_WIDTH; x += 96) {
-                this.add.rectangle(x, lineY, 2, 24, 0x505050).setDepth(-19);
-              }
-            }
-          } else {
-            this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, 0xfff8e7)
-              .setDepth(-20);
-            this.add.rectangle(292, y + 170, 58, 76, 0x9ad7f5).setDepth(-19);
-            this.add.rectangle(292, y + 170, 64, 6, 0xd8c39a).setDepth(-18);
-            this.add.rectangle(292, y + 170, 6, 82, 0xd8c39a).setDepth(-18);
-            this.add.rectangle(292, y + 130, 64, 6, 0xd8c39a).setDepth(-18);
-            this.add.rectangle(292, y + 210, 64, 6, 0xd8c39a).setDepth(-18);
-            this.add.rectangle(96, y + 512, 156, 16, 0xd6a356).setDepth(-19);
-            this.add.rectangle(96, y + 548, 156, 56, 0xf0c06d).setDepth(-19);
-            this.add.rectangle(96, y + 548, 126, 4, 0xb9863c).setDepth(-18);
+          const zone = getZoneByY(y);
+          const cfg = ZONE_CONFIG[zone];
+          const variant = i % 2;
+          const bgColor = variant === 0 ? cfg.bg1 : cfg.bg2;
+
+          this.add.rectangle(195, y + roomHeight / 2, GAME_WIDTH, roomHeight, bgColor)
+            .setDepth(cfg.depthBg);
+          this.drawZoneDecor(zone, y, roomHeight, variant);
+        }
+      }
+
+      drawZoneDecor(zone, y, roomHeight, variant) {
+        const cfg = ZONE_CONFIG[zone];
+
+        if (zone === 0) {
+          for (let lineY = y + 38; lineY < y + roomHeight; lineY += 46) {
+            this.add.rectangle(195, lineY, GAME_WIDTH, 2, cfg.lineColor).setDepth(cfg.depthDecor);
           }
+          for (let lineY = y + 61; lineY < y + roomHeight; lineY += 92) {
+            for (let x = 36; x < GAME_WIDTH; x += 96) {
+              this.add.rectangle(x, lineY, 2, 24, cfg.brickColor).setDepth(cfg.depthDecor);
+            }
+          }
+          return;
+        }
+
+        if (zone === 1) {
+          if (variant === 0) {
+            this.add.rectangle(50, y + 170, 38, 50, 0x9ad7f5).setDepth(cfg.depthDecor);
+            this.add.rectangle(50, y + 170, 44, 6, cfg.lineColor).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(50, y + 170, 6, 56, cfg.lineColor).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(50, y + 145, 44, 5, cfg.lineColor).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(50, y + 195, 44, 5, cfg.lineColor).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(280, y + 300, 80, 120, 0x8d5a2b).setDepth(cfg.depthDecor);
+            this.add.rectangle(280, y + 260, 70, 4, 0x5d3417).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(280, y + 300, 70, 4, 0x5d3417).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(280, y + 340, 70, 4, 0x5d3417).setDepth(cfg.depthDecor + 1);
+            for (let bx = 250; bx <= 310; bx += 12) {
+              this.add.rectangle(bx, y + 318, 5, 34, bx % 24 === 0 ? 0x9ad7f5 : 0xf0c06d).setDepth(cfg.depthDecor + 1);
+            }
+            this.add.circle(300, y + 80, 15, 0xf3d28b).setDepth(cfg.depthDecor);
+            this.add.rectangle(300, y + 80, 2, 10, 0x5d4037).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(304, y + 82, 8, 2, 0x5d4037).setDepth(cfg.depthDecor + 1);
+          } else {
+            this.add.rectangle(280, y + 150, 60, 50, 0x6d4c41).setDepth(cfg.depthDecor);
+            this.add.rectangle(280, y + 150, 46, 36, 0xfff3d0).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(50, y + 385, 30, 20, 0xffe58f).setDepth(cfg.depthDecor);
+            this.add.rectangle(50, y + 425, 4, 48, 0x8d6e63).setDepth(cfg.depthDecor);
+            this.add.rectangle(50, y + 450, 30, 6, 0x8d6e63).setDepth(cfg.depthDecor);
+            this.add.rectangle(100, y + 650, 180, 30, 0xdce1e6).setDepth(cfg.depthDecor);
+            for (let rx = 24; rx <= 176; rx += 18) {
+              this.add.rectangle(rx, y + 650, 4, 24, 0xaab4bd).setDepth(cfg.depthDecor + 1);
+            }
+          }
+          return;
+        }
+
+        if (zone === 2) {
+          const g = this.add.graphics().setDepth(cfg.depthDecor);
+          g.lineStyle(3, cfg.lineColor, 0.85);
+          if (variant === 0) {
+            g.beginPath();
+            g.moveTo(0, y);
+            g.lineTo(195, y + 80);
+            g.lineTo(390, y);
+            g.strokePath();
+            this.add.rectangle(50, y + 550, 80, 50, 0x7a4f27).setDepth(cfg.depthDecor);
+            this.add.rectangle(50, y + 550, 84, 6, 0x4e321b).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(50, y + 550, 4, 54, 0x4e321b).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(195, y + 76, 3, 52, 0x2d1b12).setDepth(cfg.depthDecor);
+            this.add.circle(195, y + 110, 12, 0xffc46b, 0.65).setDepth(cfg.depthDecor);
+          } else {
+            g.lineStyle(2, cfg.brickColor, 0.7);
+            for (let lineY = y + 40; lineY < y + roomHeight; lineY += 50) {
+              g.lineBetween(0, lineY, GAME_WIDTH, lineY);
+            }
+            g.lineStyle(3, cfg.lineColor, 0.85);
+            g.strokeTriangle(140, y + 110, 180, y + 70, 220, y + 110);
+            this.add.rectangle(180, y + 120, 80, 80, 0x6f4e37).setDepth(cfg.depthDecor);
+            this.add.rectangle(180, y + 120, 54, 54, 0x98c3d8).setDepth(cfg.depthDecor + 1);
+            this.add.rectangle(280, y + 600, 60, 50, 0x6b1f1a).setDepth(cfg.depthDecor);
+            this.add.rectangle(280, y + 582, 42, 8, 0x3f1614).setDepth(cfg.depthDecor + 1);
+          }
+          return;
+        }
+
+        if (zone === 3) {
+          const cloudSets = variant === 0
+            ? [[70, 140, 0.46], [245, 280, 0.34], [135, 500, 0.4]]
+            : [[95, 110, 0.28], [300, 410, 0.35]];
+          cloudSets.forEach(([cx, cy, alpha], idx) => {
+            const parts = [
+              this.add.ellipse(cx, y + cy, 56, 24, 0xffffff, alpha).setDepth(cfg.depthDecor),
+              this.add.ellipse(cx - 22, y + cy + 5, 38, 20, 0xffffff, alpha * 0.9).setDepth(cfg.depthDecor),
+              this.add.ellipse(cx + 24, y + cy + 3, 42, 22, 0xffffff, alpha * 0.85).setDepth(cfg.depthDecor)
+            ];
+            this.tweens.add({
+              targets: parts,
+              y: `+=${idx % 2 === 0 ? 8 : 5}`,
+              duration: 3000 + idx * 650,
+              yoyo: true,
+              repeat: -1,
+              ease: "Sine.easeInOut"
+            });
+          });
+          if (variant === 1) {
+            const birds = [[100, 240], [225, 175], [310, 310]];
+            birds.forEach(([bx, by]) => {
+              const bird = this.add.graphics().setDepth(cfg.depthDecor + 1);
+              bird.lineStyle(2, 0x5d4037, 0.75);
+              bird.lineBetween(bx - 8, y + by, bx, y + by + 5);
+              bird.lineBetween(bx, y + by + 5, bx + 8, y + by);
+            });
+          }
+          return;
+        }
+
+        if (zone === 4) {
+          const starCount = variant === 0 ? 12 : 18;
+          const stars = [];
+          for (let i = 0; i < starCount; i += 1) {
+            const sx = 24 + ((i * 73 + variant * 31) % 340);
+            const sy = y + 40 + ((i * 97 + variant * 19) % (roomHeight - 100));
+            const alpha = 0.5 + ((i * 17) % 50) / 100;
+            stars.push(this.add.circle(sx, sy, i % 5 === 0 ? 2 : 1.3, 0xffffff, alpha).setDepth(cfg.depthDecor));
+          }
+          this.tweens.add({
+            targets: stars,
+            alpha: 0.25,
+            duration: 900 + variant * 300,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+          });
+          if (variant === 0) {
+            this.add.circle(322, y + 92, 21, 0xffffff, 0.85).setDepth(cfg.depthDecor);
+            this.add.circle(333, y + 86, 21, cfg.bg1, 1).setDepth(cfg.depthDecor + 1);
+          } else {
+            const g = this.add.graphics().setDepth(cfg.depthDecor);
+            g.lineStyle(2, 0xffffff, 0.55);
+            g.lineBetween(292, y + 170, 338, y + 132);
+            g.lineBetween(80, y + 420, 118, y + 392);
+            this.add.rectangle(195, y + 520, GAME_WIDTH, 36, 0xffffff, 0.08).setDepth(cfg.depthDecor);
+          }
+          return;
+        }
+
+        const auroras = variant === 0
+          ? [[62, 140, 30, 170, 0x7c4dff], [150, 215, 24, 140, 0x00bcd4], [292, 125, 28, 195, 0xe040fb]]
+          : [[96, 180, 26, 190, 0x00bcd4], [214, 120, 32, 160, 0xe040fb], [328, 240, 24, 150, 0x7c4dff]];
+        auroras.forEach(([ax, ay, aw, ah, color], idx) => {
+          const band = this.add.rectangle(ax, y + ay, aw, ah, color, 0.18 + idx * 0.04)
+            .setDepth(cfg.depthDecor);
+          band.setAngle(variant === 0 ? -8 + idx * 6 : 8 - idx * 5);
+          this.tweens.add({
+            targets: band,
+            x: `+=${variant === 0 ? 12 : -12}`,
+            alpha: 0.3,
+            duration: 2600 + idx * 500,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+          });
+        });
+        const brightStars = [];
+        for (let i = 0; i < 10; i += 1) {
+          const sx = 30 + ((i * 91 + variant * 43) % 330);
+          const sy = y + 35 + ((i * 113 + variant * 67) % (roomHeight - 130));
+          brightStars.push(this.add.circle(sx, sy, 3, 0xffffff, 0.25).setDepth(cfg.depthDecor));
+          brightStars.push(this.add.circle(sx, sy, 1.2, 0xffffff, 0.95).setDepth(cfg.depthDecor + 1));
+        }
+        this.tweens.add({
+          targets: brightStars,
+          alpha: 0.35,
+          duration: 1100,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut"
+        });
+        if (variant === 1) {
+          this.add.ellipse(195, y + roomHeight + 56, 470, 130, 0x245fa8, 0.35).setDepth(cfg.depthDecor);
+          this.add.ellipse(195, y + roomHeight + 78, 470, 120, 0x5d4037, 0.22).setDepth(cfg.depthDecor + 1);
         }
       }
 
@@ -360,7 +547,6 @@
             x,
             y,
             side,
-            roomId: Math.floor(i / 12) % 2,
             index: i
           });
         }
@@ -369,19 +555,69 @@
       drawGrabPoints() {
         this.pointGroup = this.add.group();
         this.grabPoints.forEach((point) => {
-          if (point.roomId === 0) {
-            const pipe = this.add.rectangle(point.x, point.y, 28, 9, 0x8b5a2b)
-              .setStrokeStyle(2, 0x4f331d);
-            const boltA = this.add.circle(point.x - 8, point.y, 2, 0xd2b48c);
-            const boltB = this.add.circle(point.x + 8, point.y, 2, 0xd2b48c);
-            this.pointGroup.addMultiple([pipe, boltA, boltB]);
-          } else {
-            const handle = this.add.circle(point.x, point.y, 9, 0xd4af37)
-              .setStrokeStyle(2, 0x8b6f18);
-            const shine = this.add.circle(point.x - 3, point.y - 3, 2, 0xffe58f);
-            this.pointGroup.addMultiple([handle, shine]);
+          const zone = getZoneByY(point.y);
+          let elements = [];
+          switch (zone) {
+            case 0:
+              elements = this.makeGrabPipe(point);
+              break;
+            case 1:
+              elements = this.makeGrabCurtain(point);
+              break;
+            case 2:
+              elements = this.makeGrabHook(point);
+              break;
+            case 3:
+              elements = this.makeGrabCrystal(point, 0x40e0d0, 0x20b2aa);
+              break;
+            case 4:
+              elements = this.makeGrabCrystal(point, 0xffd700, 0xffab00);
+              break;
+            case 5:
+              elements = this.makeGrabCrystal(point, 0xe040fb, 0xaa00ff);
+              break;
+            default:
+              elements = this.makeGrabPipe(point);
+              break;
           }
+          elements.forEach((el) => this.pointGroup.add(el));
         });
+      }
+
+      makeGrabPipe(point) {
+        const pipe = this.add.rectangle(point.x, point.y, 28, 9, 0x8b5a2b)
+          .setStrokeStyle(2, 0x4f331d);
+        const boltA = this.add.circle(point.x - 8, point.y, 2, 0xd2b48c);
+        const boltB = this.add.circle(point.x + 8, point.y, 2, 0xd2b48c);
+        return [pipe, boltA, boltB];
+      }
+
+      makeGrabCurtain(point) {
+        const rod = this.add.rectangle(point.x, point.y, 24, 5, 0xd4af37)
+          .setStrokeStyle(1, 0x8b6f18);
+        const ringL = this.add.circle(point.x - 8, point.y, 4, 0xffe58f)
+          .setStrokeStyle(1, 0x8b6f18);
+        const ringR = this.add.circle(point.x + 8, point.y, 4, 0xffe58f)
+          .setStrokeStyle(1, 0x8b6f18);
+        return [rod, ringL, ringR];
+      }
+
+      makeGrabHook(point) {
+        const beam = this.add.rectangle(point.x, point.y - 5, 24, 5, 0x7a4f27)
+          .setStrokeStyle(1, 0x4e321b);
+        const hook = this.add.rectangle(point.x, point.y, 18, 8, 0xcd853f)
+          .setStrokeStyle(2, 0x8b6914);
+        const glow = this.add.circle(point.x, point.y - 4, 3, 0xffd4a3, 0.6);
+        return [beam, hook, glow];
+      }
+
+      makeGrabCrystal(point, color, strokeColor) {
+        const crystal = this.add.rectangle(point.x, point.y, 16, 12, color, 0.85)
+          .setStrokeStyle(2, strokeColor);
+        crystal.setAngle(45);
+        const glowA = this.add.circle(point.x - 5, point.y - 3, 2, 0xffffff, 0.5);
+        const glowB = this.add.circle(point.x + 5, point.y + 2, 2, 0xffffff, 0.4);
+        return [crystal, glowA, glowB];
       }
 
       update() {
@@ -416,6 +652,17 @@
 
         this.bestHeight = Math.max(this.bestHeight, Math.round((500 - this.cat.y) / 10));
         this.heightText.setText(`高度 ${this.bestHeight}m`);
+
+        const catZone = getZoneByY(this.cat.y);
+        this.updateAtmosphere(catZone);
+      }
+
+      updateAtmosphere(zone) {
+        if (this.currentAtmosphereZone === zone) {
+          return;
+        }
+        this.currentAtmosphereZone = zone;
+        this.cameras.main.setBackgroundColor(ZONE_CONFIG[zone].bg1);
       }
 
       handleJump(direction, velocityX = JUMP_VX, velocityY = JUMP_VY) {
