@@ -841,7 +841,7 @@
       // ===================== DEATH / GAME OVER =====================
 
       showDeathScreen() {
-        const finalHeight = Math.round((500 - this.cat.y) / 10);
+        const finalHeight = Math.max(0, Math.round((500 - this.cat.y) / 10));
         const bestH = this.bestHeight;
 
         this.cameras.main.stopFollow();
