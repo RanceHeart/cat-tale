@@ -208,6 +208,7 @@
         this.releasedGrab = null;
         this.airCatchUsed = false;
         this.bestHeight = 0;
+        this.lastSafeY = 0;
         this.chargeStart = 0;
         this.chargeDirection = 1;
         this.chargeInput = null;
@@ -266,6 +267,7 @@
         }).setOrigin(0.5).setDepth(15).setVisible(false);
 
         this.catchPoint(this.grabPoints[0]);
+        this.lastSafeY = this.cat.y;
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
         this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 150);
@@ -913,7 +915,8 @@
           this.tryCatch();
         }
 
-        if (this.cat.y > this.cameras.main.scrollY + GAME_HEIGHT + 100 && this.catState !== CatState.DEATH) {
+        const FALL_MARGIN = 1500;
+        if ((this.catState === CatState.FALLING || this.catState === CatState.JUMP) && this.cat.y > this.lastSafeY + FALL_MARGIN) {
           this.catState = CatState.DEATH;
           this.showDeathScreen();
           return;
@@ -930,6 +933,10 @@
         }
 
         this.updateJumpArrow();
+
+        if (this.catState === CatState.IDLE || this.catState === CatState.CATCHING) {
+          this.lastSafeY = this.cat.y;
+        }
 
         this.bestHeight = Math.max(this.bestHeight, Math.round((500 - this.cat.y) / 10));
         this.heightText.setText(`高度 ${this.bestHeight}m`);
