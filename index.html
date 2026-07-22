@@ -58,7 +58,7 @@
     const ROOM_DESTROY_MARGIN = 6000;
     const OBSTACLE_VIS_MARGIN = 900;
     const OBSTACLE_DESTROY_MARGIN = 4200;
-    const OBSTACLE_MIN_VERTICAL_GAP = 1950;
+    const OBSTACLE_MIN_VERTICAL_GAP = 1200;
     const DROP_WARNING_TIME = 1000;
     const DROP_FALL_TIME = 620;
     const DROP_CYCLE_TIME = 2700;
@@ -92,12 +92,12 @@
         return 0;
       }
       if (height < 2000) {
-        return 0.03;
+        return 0.08;
       }
       if (height < 10000) {
-        return 0.05;
+        return 0.12;
       }
-      return 0.08;
+      return 0.15;
     }
 
     const ZONE_CONFIG = [
@@ -1314,7 +1314,6 @@
 
         const target = this.grabPoints[this.currentGrab.index + 2];
         const released = this.currentGrab;
-        const dx = target.x - this.cat.x;
         const dy = target.y - this.cat.y;
         const disc = CHARGE_JUMP_VY * CHARGE_JUMP_VY + 2 * GRAVITY * dy;
         const flightTime = disc > 0 ? (-CHARGE_JUMP_VY + Math.sqrt(disc)) / GRAVITY : 0;
@@ -1324,8 +1323,8 @@
           return;
         }
 
-        const velocityX = dx / flightTime;
-        const direction = velocityX === 0 ? this.chargeDirection : Math.sign(velocityX);
+        const direction = this.chargeDirection;
+        const velocityX = direction * CHARGE_JUMP_VX;
 
         this.releasedGrab = released;
         this.currentGrab = null;
