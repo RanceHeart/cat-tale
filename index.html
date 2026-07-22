@@ -613,28 +613,42 @@
         }
 
         if (zone === 3) {
-          const cloudSets = variant === 0
-            ? [[70, 140, 0.46], [245, 280, 0.34], [135, 500, 0.4]]
-            : [[95, 110, 0.28], [300, 410, 0.35]];
-          cloudSets.forEach(([cx, cy, alpha], idx) => {
+          const roomIndex = Math.max(0, Math.round((690 - y) / roomHeight) - 1);
+          const decorVariant = roomIndex % 8;
+          const cloudVariants = [
+            [[64, 130, 0.44, 62], [248, 286, 0.34, 82], [136, 520, 0.38, 70]],
+            [[92, 108, 0.3, 46], [304, 404, 0.36, 72], [210, 610, 0.26, 58]],
+            [[44, 330, 0.28, 54], [174, 168, 0.43, 86], [316, 540, 0.32, 68]],
+            [[118, 245, 0.34, 92], [278, 126, 0.28, 50], [60, 585, 0.4, 76]],
+            [[72, 92, 0.25, 54], [222, 260, 0.48, 96], [330, 468, 0.3, 58]],
+            [[150, 108, 0.36, 74], [72, 456, 0.32, 62], [292, 610, 0.28, 82]],
+            [[46, 196, 0.36, 74], [196, 386, 0.3, 58], [324, 232, 0.42, 88]],
+            [[108, 610, 0.33, 92], [252, 168, 0.42, 70], [340, 378, 0.24, 46]]
+          ];
+          const cloudSets = cloudVariants[decorVariant];
+          cloudSets.forEach(([cx, cy, alpha, width], idx) => {
             const parts = [
-              this.add.ellipse(cx, y + cy, 56, 24, 0xffffff, alpha).setDepth(cfg.depthDecor),
-              this.add.ellipse(cx - 22, y + cy + 5, 38, 20, 0xffffff, alpha * 0.9).setDepth(cfg.depthDecor),
-              this.add.ellipse(cx + 24, y + cy + 3, 42, 22, 0xffffff, alpha * 0.85).setDepth(cfg.depthDecor)
+              this.add.ellipse(cx, y + cy, width, 24, 0xffffff, alpha).setDepth(cfg.depthDecor),
+              this.add.ellipse(cx - width * 0.36, y + cy + 5, width * 0.56, 20, 0xffffff, alpha * 0.9).setDepth(cfg.depthDecor),
+              this.add.ellipse(cx + width * 0.38, y + cy + 3, width * 0.62, 22, 0xffffff, alpha * 0.85).setDepth(cfg.depthDecor)
             ];
             parts.forEach(p => elements.push(p));
             this.tweens.add({
               targets: parts,
               y: `+=${idx % 2 === 0 ? 8 : 5}`,
-              duration: 3000 + idx * 650,
+              duration: 2800 + idx * 520 + decorVariant * 80,
               yoyo: true,
               repeat: -1,
               ease: "Sine.easeInOut"
             });
           });
-          if (variant === 1) {
-            const birds = [[100, 240], [225, 175], [310, 310]];
-            birds.forEach(([bx, by]) => {
+          if (decorVariant === 1 || decorVariant === 4 || decorVariant === 7) {
+            const birdSets = [
+              [[96, 238], [224, 176], [312, 310]],
+              [[54, 150], [138, 122], [318, 248]],
+              [[74, 352], [214, 300], [290, 366]]
+            ];
+            birdSets[decorVariant % 3].forEach(([bx, by]) => {
               const bird = this.add.graphics().setDepth(cfg.depthDecor + 1);
               elements.push(bird);
               bird.lineStyle(2, 0x5d4037, 0.75);
@@ -642,16 +656,24 @@
               bird.lineBetween(bx, y + by + 5, bx + 8, y + by);
             });
           }
+          if (decorVariant === 2 || decorVariant === 5) {
+            elements.push(
+              this.add.rectangle(195, y + 430, GAME_WIDTH, 26, 0xffffff, 0.06).setDepth(cfg.depthDecor - 1),
+              this.add.rectangle(195, y + 456, GAME_WIDTH, 12, 0xffffff, 0.04).setDepth(cfg.depthDecor - 1)
+            );
+          }
           return elements;
         }
 
         if (zone === 4) {
-          const starCount = variant === 0 ? 12 : 18;
+          const roomIndex = Math.max(0, Math.round((690 - y) / roomHeight) - 1);
+          const decorVariant = roomIndex % 8;
+          const starCount = 12 + (decorVariant % 4) * 2;
           const stars = [];
           for (let i = 0; i < starCount; i += 1) {
-            const sx = 24 + ((i * 73 + variant * 31) % 340);
-            const sy = y + 40 + ((i * 97 + variant * 19) % (roomHeight - 100));
-            const alpha = 0.5 + ((i * 17) % 50) / 100;
+            const sx = 24 + ((i * 73 + decorVariant * 31) % 340);
+            const sy = y + 40 + ((i * 97 + decorVariant * 19) % (roomHeight - 100));
+            const alpha = 0.42 + ((i * 17 + decorVariant * 7) % 48) / 100;
             const s = this.add.circle(sx, sy, i % 5 === 0 ? 2 : 1.3, 0xffffff, alpha).setDepth(cfg.depthDecor);
             stars.push(s);
             elements.push(s);
@@ -659,41 +681,85 @@
           this.tweens.add({
             targets: stars,
             alpha: 0.25,
-            duration: 900 + variant * 300,
+            duration: 900 + decorVariant * 90,
             yoyo: true,
             repeat: -1,
             ease: "Sine.easeInOut"
           });
-          if (variant === 0) {
+          const g = this.add.graphics().setDepth(cfg.depthDecor);
+          elements.push(g);
+          if (decorVariant === 0) {
             elements.push(
               this.add.circle(322, y + 92, 21, 0xffffff, 0.85).setDepth(cfg.depthDecor),
               this.add.circle(333, y + 86, 21, cfg.bg1, 1).setDepth(cfg.depthDecor + 1)
             );
-          } else {
-            const g = this.add.graphics().setDepth(cfg.depthDecor);
-            elements.push(g);
+          } else if (decorVariant === 1) {
             g.lineStyle(2, 0xffffff, 0.55);
             g.lineBetween(292, y + 170, 338, y + 132);
             g.lineBetween(80, y + 420, 118, y + 392);
+            elements.push(this.add.rectangle(195, y + 520, GAME_WIDTH, 36, 0xffffff, 0.08).setDepth(cfg.depthDecor));
+          } else if (decorVariant === 2) {
+            g.lineStyle(2, 0x9fd8ff, 0.5);
+            g.strokeCircle(90, y + 150, 26);
+            g.strokeCircle(90, y + 150, 34);
+            elements.push(this.add.circle(90, y + 150, 9, 0xffffff, 0.72).setDepth(cfg.depthDecor + 1));
+          } else if (decorVariant === 3) {
+            g.fillStyle(0xffffff, 0.12);
+            g.fillTriangle(42, y + 600, 120, y + 530, 204, y + 600);
+            g.fillTriangle(196, y + 608, 278, y + 516, 376, y + 608);
+          } else if (decorVariant === 4) {
             elements.push(
-              this.add.rectangle(195, y + 520, GAME_WIDTH, 36, 0xffffff, 0.08).setDepth(cfg.depthDecor)
+              this.add.rectangle(96, y + 230, 82, 8, 0xffffff, 0.12).setDepth(cfg.depthDecor),
+              this.add.rectangle(282, y + 420, 118, 10, 0xffffff, 0.1).setDepth(cfg.depthDecor),
+              this.add.rectangle(196, y + 578, 220, 16, 0xffffff, 0.07).setDepth(cfg.depthDecor)
             );
+          } else if (decorVariant === 5) {
+            g.lineStyle(2, 0xffd700, 0.45);
+            g.lineBetween(76, y + 224, 114, y + 196);
+            g.lineBetween(114, y + 196, 146, y + 214);
+            g.lineBetween(246, y + 386, 284, y + 350);
+            g.lineBetween(284, y + 350, 330, y + 372);
+          } else if (decorVariant === 6) {
+            elements.push(
+              this.add.circle(284, y + 142, 24, 0xfff2b0, 0.75).setDepth(cfg.depthDecor),
+              this.add.circle(277, y + 136, 4, 0xd6b66a, 0.45).setDepth(cfg.depthDecor + 1),
+              this.add.circle(294, y + 151, 3, 0xd6b66a, 0.4).setDepth(cfg.depthDecor + 1)
+            );
+          } else {
+            g.lineStyle(3, 0xffffff, 0.36);
+            g.beginPath();
+            g.moveTo(0, y + 548);
+            g.lineTo(78, y + 528);
+            g.lineTo(160, y + 554);
+            g.lineTo(250, y + 516);
+            g.lineTo(GAME_WIDTH, y + 540);
+            g.strokePath();
           }
           return elements;
         }
 
         if (zone === 5) {
-          const auroras = variant === 0
-            ? [[62, 140, 30, 170, 0x7c4dff], [150, 215, 24, 140, 0x00bcd4], [292, 125, 28, 195, 0xe040fb]]
-            : [[96, 180, 26, 190, 0x00bcd4], [214, 120, 32, 160, 0xe040fb], [328, 240, 24, 150, 0x7c4dff]];
+          const roomIndex = Math.max(0, Math.round((690 - y) / roomHeight) - 1);
+          const decorVariant = roomIndex % 8;
+          const auroraVariants = [
+            [[62, 140, 30, 170, 0x7c4dff, -8], [150, 215, 24, 140, 0x00bcd4, -2], [292, 125, 28, 195, 0xe040fb, 4]],
+            [[96, 180, 26, 190, 0x00bcd4, 8], [214, 120, 32, 160, 0xe040fb, 3], [328, 240, 24, 150, 0x7c4dff, -2]],
+            [[50, 250, 22, 180, 0xe040fb, -14], [180, 168, 34, 210, 0x7c4dff, 2], [312, 318, 20, 150, 0x00bcd4, 12]],
+            [[116, 106, 48, 120, 0x00bcd4, 74], [252, 152, 38, 136, 0xe040fb, 78], [338, 318, 28, 170, 0x7c4dff, -8]],
+            [[44, 146, 28, 190, 0x7c4dff, 14], [142, 330, 30, 150, 0xe040fb, -12], [286, 232, 42, 210, 0x00bcd4, 4]],
+            [[84, 420, 34, 160, 0x00bcd4, -4], [204, 164, 26, 180, 0x7c4dff, 10], [328, 96, 22, 130, 0xe040fb, 16]],
+            [[56, 112, 22, 120, 0xe040fb, 34], [180, 260, 54, 150, 0x00bcd4, -76], [306, 406, 30, 180, 0x7c4dff, -18]],
+            [[94, 172, 30, 210, 0x7c4dff, -16], [244, 268, 26, 160, 0xe040fb, 12], [346, 138, 18, 130, 0x00bcd4, 2]]
+          ];
+          const auroras = auroraVariants[decorVariant];
           auroras.forEach(([ax, ay, aw, ah, color], idx) => {
             const band = this.add.rectangle(ax, y + ay, aw, ah, color, 0.18 + idx * 0.04)
               .setDepth(cfg.depthDecor);
             elements.push(band);
-            band.setAngle(variant === 0 ? -8 + idx * 6 : 8 - idx * 5);
+            band.setAngle(auroras[idx][5]);
             this.tweens.add({
               targets: band,
-              x: `+=${variant === 0 ? 12 : -12}`,
+              x: `+=${decorVariant % 2 === 0 ? 12 : -12}`,
               alpha: 0.3,
               duration: 2600 + idx * 500,
               yoyo: true,
@@ -703,8 +769,8 @@
           });
           const brightStars = [];
           for (let i = 0; i < 10; i += 1) {
-            const sx = 30 + ((i * 91 + variant * 43) % 330);
-            const sy = y + 35 + ((i * 113 + variant * 67) % (roomHeight - 130));
+            const sx = 30 + ((i * 91 + decorVariant * 43) % 330);
+            const sy = y + 35 + ((i * 113 + decorVariant * 67) % (roomHeight - 130));
             const s1 = this.add.circle(sx, sy, 3, 0xffffff, 0.25).setDepth(cfg.depthDecor);
             const s2 = this.add.circle(sx, sy, 1.2, 0xffffff, 0.95).setDepth(cfg.depthDecor + 1);
             brightStars.push(s1, s2);
@@ -718,10 +784,23 @@
             repeat: -1,
             ease: "Sine.easeInOut"
           });
-          if (variant === 1) {
+          if (decorVariant === 1 || decorVariant === 6) {
             elements.push(
               this.add.ellipse(195, y + roomHeight + 56, 470, 130, 0x245fa8, 0.35).setDepth(cfg.depthDecor),
               this.add.ellipse(195, y + roomHeight + 78, 470, 120, 0x5d4037, 0.22).setDepth(cfg.depthDecor + 1)
+            );
+          }
+          if (decorVariant === 2 || decorVariant === 5) {
+            const g = this.add.graphics().setDepth(cfg.depthDecor + 1);
+            elements.push(g);
+            g.lineStyle(2, 0xffffff, 0.36);
+            g.lineBetween(58, y + 512, 120, y + 486);
+            g.lineBetween(238, y + 92, 312, y + 64);
+          }
+          if (decorVariant === 3 || decorVariant === 7) {
+            elements.push(
+              this.add.rectangle(195, y + 612, GAME_WIDTH, 18, 0xffffff, 0.05).setDepth(cfg.depthDecor),
+              this.add.rectangle(132, y + 636, 180, 8, 0x00bcd4, 0.08).setDepth(cfg.depthDecor)
             );
           }
           return elements;
@@ -729,14 +808,16 @@
 
         // Zone 6: Space
         if (zone === 6) {
+          const roomIndex = Math.max(0, Math.round((690 - y) / roomHeight) - 1);
+          const decorVariant = roomIndex % 8;
           // Stars
-          const starCount = variant === 0 ? 25 : 35;
+          const starCount = 24 + (decorVariant % 5) * 3;
           const stars = [];
           for (let i = 0; i < starCount; i += 1) {
-            const sx = 10 + ((i * 67 + variant * 41) % 370);
-            const sy = y + 20 + ((i * 89 + variant * 53) % (roomHeight - 60));
+            const sx = 10 + ((i * 67 + decorVariant * 41) % 370);
+            const sy = y + 20 + ((i * 89 + decorVariant * 53) % (roomHeight - 60));
             const size = i % 7 === 0 ? 2.5 : i % 3 === 0 ? 1.8 : 1.2;
-            const alpha = 0.3 + ((i * 19) % 60) / 100;
+            const alpha = 0.3 + ((i * 19 + decorVariant * 11) % 60) / 100;
             const s = this.add.circle(sx, sy, size, 0xffffff, alpha).setDepth(cfg.depthDecor);
             stars.push(s);
             elements.push(s);
@@ -745,42 +826,87 @@
           this.tweens.add({
             targets: stars,
             alpha: 0.1,
-            duration: 1400 + variant * 400,
+            duration: 1300 + decorVariant * 140,
             yoyo: true,
             repeat: -1,
             ease: "Sine.easeInOut",
             delay: this.tweens.stagger(200)
           });
 
-          // Earth curve arc at the bottom (looking down from space)
-          const arcY = y + roomHeight + 10;
-          elements.push(
-            this.add.ellipse(195, arcY, 520, 80, 0x1a6bcf, 0.2).setDepth(cfg.depthDecor),
-            this.add.ellipse(195, arcY + 10, 480, 50, 0x87ceeb, 0.08).setDepth(cfg.depthDecor + 1)
-          );
-
-          // Satellite / space station in variant 1
-          if (variant === 1) {
-            const satX = 80 + ((variant * 137) % 230);
-            const satY = y + 120 + ((variant * 73) % 300);
-            // Solar panels
+          if (decorVariant === 0) {
+            const arcY = y + roomHeight + 10;
+            elements.push(
+              this.add.ellipse(195, arcY, 520, 80, 0x1a6bcf, 0.2).setDepth(cfg.depthDecor),
+              this.add.ellipse(195, arcY + 10, 480, 50, 0x87ceeb, 0.08).setDepth(cfg.depthDecor + 1)
+            );
+          } else if (decorVariant === 1) {
+            const satX = 232;
+            const satY = y + 193;
             elements.push(
               this.add.rectangle(satX - 28, satY, 22, 6, 0x4488cc, 0.7).setDepth(cfg.depthDecor + 1),
               this.add.rectangle(satX + 28, satY, 22, 6, 0x4488cc, 0.7).setDepth(cfg.depthDecor + 1),
-              // Body
               this.add.rectangle(satX, satY, 10, 12, 0x888888).setDepth(cfg.depthDecor + 2),
-              // Antenna
               this.add.rectangle(satX, satY - 10, 2, 8, 0xaaaaaa).setDepth(cfg.depthDecor + 2),
               this.add.circle(satX, satY - 14, 2, 0xff4444, 0.8).setDepth(cfg.depthDecor + 3)
+            );
+          } else if (decorVariant === 2) {
+            elements.push(
+              this.add.circle(84, y + 148, 30, 0x6d3dbd, 0.5).setDepth(cfg.depthDecor),
+              this.add.circle(75, y + 138, 5, 0xb899ff, 0.35).setDepth(cfg.depthDecor + 1),
+              this.add.circle(98, y + 160, 4, 0x2d185f, 0.42).setDepth(cfg.depthDecor + 1),
+              this.add.ellipse(84, y + 148, 92, 10, 0x00e5ff, 0.18).setAngle(-16).setDepth(cfg.depthDecor + 1)
+            );
+          } else if (decorVariant === 3) {
+            const comet = this.add.graphics().setDepth(cfg.depthDecor + 1);
+            elements.push(comet);
+            comet.fillStyle(0xffffff, 0.82);
+            comet.fillCircle(312, y + 118, 4);
+            comet.lineStyle(3, 0x87ceeb, 0.42);
+            comet.lineBetween(304, y + 124, 228, y + 176);
+            comet.lineStyle(2, 0xe040fb, 0.25);
+            comet.lineBetween(304, y + 114, 250, y + 136);
+          } else if (decorVariant === 4) {
+            elements.push(
+              this.add.rectangle(92, y + 390, 74, 10, 0x5f7fbf, 0.55).setDepth(cfg.depthDecor + 1),
+              this.add.rectangle(166, y + 390, 34, 14, 0x999999, 0.85).setDepth(cfg.depthDecor + 2),
+              this.add.rectangle(218, y + 390, 70, 10, 0x5f7fbf, 0.55).setDepth(cfg.depthDecor + 1),
+              this.add.rectangle(166, y + 370, 8, 24, 0xcccccc, 0.75).setDepth(cfg.depthDecor + 2),
+              this.add.circle(166, y + 358, 8, 0xdcecff, 0.45).setDepth(cfg.depthDecor + 1)
+            );
+          } else if (decorVariant === 5) {
+            elements.push(
+              this.add.ellipse(204, y + 340, 210, 78, 0xcc0066, 0.05).setDepth(cfg.depthDecor - 1),
+              this.add.ellipse(228, y + 348, 150, 42, 0x0044aa, 0.07).setDepth(cfg.depthDecor - 1),
+              this.add.circle(268, y + 332, 3, 0xe040fb, 0.7).setDepth(cfg.depthDecor + 1),
+              this.add.circle(148, y + 360, 2, 0x00e5ff, 0.65).setDepth(cfg.depthDecor + 1)
+            );
+          } else if (decorVariant === 6) {
+            const g = this.add.graphics().setDepth(cfg.depthDecor + 1);
+            elements.push(g);
+            g.lineStyle(2, 0x00e5ff, 0.42);
+            g.strokeCircle(108, y + 188, 22);
+            g.lineBetween(132, y + 188, 210, y + 238);
+            g.lineBetween(210, y + 238, 292, y + 214);
+            g.strokeCircle(292, y + 214, 18);
+            elements.push(
+              this.add.circle(108, y + 188, 3, 0xffffff, 0.85).setDepth(cfg.depthDecor + 2),
+              this.add.circle(292, y + 214, 3, 0xffffff, 0.85).setDepth(cfg.depthDecor + 2)
+            );
+          } else {
+            elements.push(
+              this.add.ellipse(52, y + 612, 120, 36, 0x3040c0, 0.22).setDepth(cfg.depthDecor),
+              this.add.ellipse(52, y + 612, 82, 16, 0x00e5ff, 0.08).setDepth(cfg.depthDecor + 1),
+              this.add.circle(340, y + 100, 18, 0x3040c0, 0.42).setDepth(cfg.depthDecor),
+              this.add.circle(346, y + 96, 5, 0x00e5ff, 0.22).setDepth(cfg.depthDecor + 1)
             );
           }
 
           // Nebula clouds (very faint colored rectangles)
           const nebulaColors = [0x6a0dad, 0x0044aa, 0xcc0066];
           nebulaColors.forEach((color, idx) => {
-            const nx = 60 + idx * 120 + ((variant * 55 + idx * 40) % 60);
-            const ny = y + 80 + ((idx * 130 + variant * 70) % (roomHeight - 200));
-            const neb = this.add.rectangle(nx, ny, 70 + idx * 20, 30 + idx * 10, color, 0.04 + idx * 0.02)
+            const nx = 45 + idx * 120 + ((decorVariant * 55 + idx * 40) % 80);
+            const ny = y + 80 + ((idx * 130 + decorVariant * 70) % (roomHeight - 200));
+            const neb = this.add.rectangle(nx, ny, 60 + idx * 18, 26 + idx * 8, color, 0.035 + idx * 0.018)
               .setDepth(cfg.depthDecor - 1);
             elements.push(neb);
             this.tweens.add({
