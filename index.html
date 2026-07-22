@@ -1314,6 +1314,7 @@
 
         const target = this.grabPoints[this.currentGrab.index + 2];
         const released = this.currentGrab;
+        const dx = target.x - this.cat.x;
         const dy = target.y - this.cat.y;
         const disc = CHARGE_JUMP_VY * CHARGE_JUMP_VY + 2 * GRAVITY * dy;
         const flightTime = disc > 0 ? (-CHARGE_JUMP_VY + Math.sqrt(disc)) / GRAVITY : 0;
@@ -1323,8 +1324,12 @@
           return;
         }
 
+        // Use physics to compute exact velocity for landing on N+2,
+        // but respect the user's tap direction for the sign.
         const direction = this.chargeDirection;
-        const velocityX = direction * CHARGE_JUMP_VX;
+        const velocityX = Math.sign(dx) === direction || dx === 0
+          ? dx / flightTime
+          : direction * CHARGE_JUMP_VX;
 
         this.releasedGrab = released;
         this.currentGrab = null;
