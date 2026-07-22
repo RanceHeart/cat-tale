@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="version" content="V13">
-  <title>猫爬架 V13</title>
+  <meta name="version" content="V14">
+  <title>猫爬架 V14</title>
   <link rel="icon" href="data:,">
   <style>
     html,
@@ -41,9 +41,9 @@
     const GRAVITY = 900;
     const JUMP_VX = 280;
     const JUMP_VY = -420;
-    const CHARGE_JUMP_VX = 500;
-    const CHARGE_JUMP_VY = -700;
-    const MAX_CHARGE = 1200;
+    const CHARGE_JUMP_VX = 520;
+    const CHARGE_JUMP_VY = -650;
+    const MAX_CHARGE = 720;
     const MIN_CHARGE = 80;
     const CATCH_RADIUS = 20;
     const MAX_FALL_SPEED = 500;
@@ -56,6 +56,12 @@
     const GRAB_DESTROY_MARGIN = 4000;
     const ROOM_VIS_MARGIN = 800;
     const ROOM_DESTROY_MARGIN = 6000;
+    const OBSTACLE_VIS_MARGIN = 900;
+    const OBSTACLE_DESTROY_MARGIN = 4200;
+    const OBSTACLE_MIN_VERTICAL_GAP = 1950;
+    const DROP_WARNING_TIME = 1000;
+    const DROP_FALL_TIME = 620;
+    const DROP_CYCLE_TIME = 2700;
 
     function getZoneByY(y) {
       const h = (500 - y) / 10;
@@ -80,6 +86,20 @@
       return 6;
     }
 
+    function getObstacleChanceByY(y) {
+      const height = (500 - y) / 10;
+      if (height < 500) {
+        return 0;
+      }
+      if (height < 2000) {
+        return 0.03;
+      }
+      if (height < 10000) {
+        return 0.05;
+      }
+      return 0.08;
+    }
+
     const ZONE_CONFIG = [
       { name: "basement", bg1: 0x3d3d3d, bg2: 0x454545, lineColor: 0x555555, brickColor: 0x505050, grabColor: 0x8b5a2b, grabStroke: 0x4f331d, depthBg: -20, depthDecor: -19 },
       { name: "residential", bg1: 0xfff8e7, bg2: 0xe8f4fd, lineColor: 0xd8c39a, brickColor: 0xb9863c, grabColor: 0xd4af37, grabStroke: 0x8b6f18, depthBg: -20, depthDecor: -19 },
@@ -97,6 +117,64 @@
       CATCHING: 3,
       CHARGING: 4,
       DEATH: 5
+    };
+
+    const DeathCopy = {
+      fall: {
+        title: "坠落",
+        lines: [
+          "猫猫想起自己不会飞。",
+          "这一跳的落点在楼下。",
+          "高度有了，着陆方案没有。",
+          "爪子短暂下线，重力准时上班。",
+          "猫猫把空气当成了抓手。",
+          "本次攀登以自由落体收尾。",
+          "手滑了，但姿势还挺认真。",
+          "下一次记得先看准再松爪。",
+          "猫猫下降得很有决心。",
+          "抓点就在旁边，猫猫选择错过。",
+          "这不是跳跃，是撤退。",
+          "地心引力赢下这一局。"
+        ]
+      },
+      bird: {
+        title: "飞鸟截胡",
+        lines: [
+          "鸟路过，顺爪把猫带走了。",
+          "本次航班不提供猫粮。",
+          "猫猫被空中交通管制拦截。",
+          "飞鸟表示这里禁止乱跳。",
+          "一只鸟完成了精准外卖取件。",
+          "猫猫体验了无票飞行。",
+          "鸟看起来很忙，但不耽误叼猫。",
+          "这不是障碍，是空中劫持。",
+          "猫猫和鸟进行了错误的会合。",
+          "短跳能躲，蓄力有风险。",
+          "飞鸟叼走了猫，也叼走了计划。",
+          "猫猫被迫加入迁徙队伍。",
+          "空中有鸟，猫猫没看表。",
+          "鸟说：这个高度归我管。"
+        ]
+      },
+      drop: {
+        title: "天降一击",
+        lines: [
+          "头顶有预告，猫猫没读。",
+          "坠物精准命中猫猫自尊。",
+          "上方掉下来的不是机会。",
+          "猫猫被一份垂直快递签收。",
+          "阴影都出现了，猫猫还在硬跳。",
+          "这是一个从天而降的反对意见。",
+          "猫猫证明了安全帽的重要性。",
+          "掉落物：我也在赶路。",
+          "预警一秒，犹豫两秒。",
+          "猫猫被天空轻轻拍扁。",
+          "这次不是手滑，是头顶太热闹。",
+          "坠物砸中，爪子自动放假。",
+          "猫猫和重物共享了同一个坐标。",
+          "下次看到阴影，先别逞强。"
+        ]
+      }
     };
 
     function makeCanvas(width, height) {
@@ -206,9 +284,11 @@
         this.catState = CatState.IDLE;
         this.currentGrab = null;
         this.releasedGrab = null;
+        this.skipCatchIndex = -1;
         this.airCatchUsed = false;
         this.bestHeight = 0;
         this.lastSafeY = 0;
+        this.deathCause = "fall";
         this.chargeStart = 0;
         this.chargeDirection = 1;
         this.chargeInput = null;
@@ -216,6 +296,9 @@
         // Lazy rendering state
         this.grabRendered = [];
         this.grabVizMap = new Map();
+        this.obstacles = [];
+        this.obstacleRendered = [];
+        this.obstacleVizMap = new Map();
         this.roomData = [];
         this.roomVisuals = new Map();
         this.roomRendered = new Set();
@@ -227,8 +310,13 @@
 
       create() {
         this.bestHeight = 0;
+        this.deathCause = "fall";
+        this.skipCatchIndex = -1;
         this.grabRendered = new Array(POINT_COUNT).fill(false);
         this.grabVizMap = new Map();
+        this.obstacles = [];
+        this.obstacleRendered = [];
+        this.obstacleVizMap = new Map();
         this.roomData = [];
         this.roomVisuals = new Map();
         this.roomRendered = new Set();
@@ -715,11 +803,14 @@
 
       generateGrabPoints() {
         this.grabPoints = [];
+        this.obstacles = [];
         let side = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
         let x = 195;
         let y = 500;
+        let lastObstacleY = 999999;
 
         for (let i = 0; i < POINT_COUNT; i += 1) {
+          const prevPoint = i > 0 ? this.grabPoints[i - 1] : null;
           if (i > 0) {
             side *= -1;
             const horizontalGap = Phaser.Math.Between(60, 140);
@@ -735,7 +826,31 @@
             side,
             index: i
           });
+
+          if (!prevPoint) {
+            continue;
+          }
+
+          const chance = getObstacleChanceByY(y);
+          const farEnough = Math.abs(y - lastObstacleY) >= OBSTACLE_MIN_VERTICAL_GAP;
+          if (chance > 0 && farEnough && Math.random() < chance) {
+            const midX = Phaser.Math.Clamp((prevPoint.x + x) / 2 + Phaser.Math.Between(-34, 34), 40, GAME_WIDTH - 40);
+            const midY = Math.round((prevPoint.y + y) / 2 + Phaser.Math.Between(-22, 22));
+            const type = Math.random() < 0.55 ? "bird" : "drop";
+            const obstacle = {
+              type,
+              x: type === "drop" ? Phaser.Math.Clamp(midX + Phaser.Math.Between(-28, 28), 34, GAME_WIDTH - 34) : midX,
+              y: midY,
+              dir: Phaser.Math.Between(0, 1) === 0 ? -1 : 1,
+              speed: Phaser.Math.Between(165, 230),
+              index: this.obstacles.length
+            };
+            this.obstacles.push(obstacle);
+            lastObstacleY = y;
+          }
         }
+
+        this.obstacleRendered = new Array(this.obstacles.length).fill(false);
       }
 
       updateGrabVisibility() {
@@ -804,6 +919,182 @@
         this.grabRendered[index] = false;
       }
 
+      // ===================== OBSTACLE SYSTEM (LAZY) =====================
+
+      updateObstacleVisibility() {
+        const scrollY = this.cameras.main.scrollY;
+        const viewTop = scrollY - OBSTACLE_VIS_MARGIN;
+        const viewBottom = scrollY + GAME_HEIGHT + OBSTACLE_VIS_MARGIN;
+        const destroyTop = scrollY - OBSTACLE_DESTROY_MARGIN;
+        const destroyBottom = scrollY + GAME_HEIGHT + OBSTACLE_DESTROY_MARGIN;
+
+        for (let i = 0; i < this.obstacles.length; i += 1) {
+          const obstacle = this.obstacles[i];
+          const rendered = this.obstacleRendered[i];
+          const inView = obstacle.y >= viewTop && obstacle.y <= viewBottom;
+          const farAway = obstacle.y < destroyTop || obstacle.y > destroyBottom;
+
+          if (inView && !rendered) {
+            this.createObstacleVisual(i);
+          } else if (rendered && !inView && farAway) {
+            this.destroyObstacleVisual(i);
+          }
+        }
+      }
+
+      createObstacleVisual(index) {
+        const obstacle = this.obstacles[index];
+        const visual = obstacle.type === "bird"
+          ? this.makeBirdObstacle(obstacle)
+          : this.makeDropObstacle(obstacle);
+        this.obstacleVizMap.set(index, visual);
+        this.obstacleRendered[index] = true;
+      }
+
+      destroyObstacleVisual(index) {
+        const visual = this.obstacleVizMap.get(index);
+        if (visual) {
+          if (visual.tweens) {
+            visual.tweens.forEach(tween => tween.stop());
+          }
+          if (visual.nodes) {
+            visual.nodes.forEach(node => {
+              if (node && node.destroy) node.destroy();
+            });
+          }
+          this.obstacleVizMap.delete(index);
+        }
+        this.obstacleRendered[index] = false;
+      }
+
+      makeBirdObstacle(obstacle) {
+        const startX = obstacle.dir > 0 ? -42 : GAME_WIDTH + 42;
+        const endX = obstacle.dir > 0 ? GAME_WIDTH + 42 : -42;
+        const bird = this.add.container(startX, obstacle.y).setDepth(8);
+        const body = this.add.rectangle(0, 0, 20, 10, 0x2f3440).setStrokeStyle(1, 0x111111);
+        const head = this.add.rectangle(obstacle.dir > 0 ? 12 : -12, -2, 8, 8, 0x444b57).setStrokeStyle(1, 0x111111);
+        const beak = this.add.triangle(obstacle.dir > 0 ? 19 : -19, -2, 0, 0, obstacle.dir > 0 ? 8 : -8, 4, obstacle.dir > 0 ? 8 : -8, -4, 0xf0b429);
+        const wingA = this.add.rectangle(-2, -8, 18, 5, 0x697386).setAngle(obstacle.dir > 0 ? -18 : 18);
+        const wingB = this.add.rectangle(-3, 8, 16, 5, 0x697386).setAngle(obstacle.dir > 0 ? 18 : -18);
+        const eye = this.add.rectangle(obstacle.dir > 0 ? 14 : -14, -4, 2, 2, 0xffffff);
+        bird.add([wingA, wingB, body, head, beak, eye]);
+
+        const distance = Math.abs(endX - startX);
+        const moveTween = this.tweens.add({
+          targets: bird,
+          x: endX,
+          duration: (distance / obstacle.speed) * 1000,
+          repeat: -1,
+          repeatDelay: 700,
+          ease: "Linear",
+          onRepeat: () => {
+            bird.x = startX;
+          }
+        });
+        const flapTween = this.tweens.add({
+          targets: [wingA, wingB],
+          scaleY: 0.35,
+          duration: 120,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut"
+        });
+
+        return {
+          type: "bird",
+          nodes: [bird],
+          tweens: [moveTween, flapTween],
+          body: bird,
+          radius: 18
+        };
+      }
+
+      makeDropObstacle(obstacle) {
+        const shadow = this.add.ellipse(obstacle.x, obstacle.y + 18, 38, 10, 0x000000, 0.22)
+          .setDepth(7)
+          .setVisible(false);
+        const drop = this.add.container(obstacle.x, obstacle.y - 360).setDepth(9).setVisible(false);
+        const main = this.add.rectangle(0, 0, 18, 24, 0x7f8c8d).setStrokeStyle(2, 0x2c3e50);
+        const chipA = this.add.rectangle(-5, -7, 6, 5, 0xb0bec5);
+        const chipB = this.add.rectangle(5, 6, 7, 4, 0x546e7a);
+        const shine = this.add.rectangle(-4, -8, 3, 8, 0xecf0f1, 0.65);
+        drop.add([main, chipA, chipB, shine]);
+
+        return {
+          type: "drop",
+          nodes: [shadow, drop],
+          tweens: [],
+          shadow,
+          body: drop,
+          startTime: this.time.now + Phaser.Math.Between(0, 900),
+          targetY: obstacle.y,
+          radius: 17,
+          active: false
+        };
+      }
+
+      updateObstacleAnimations() {
+        this.obstacleVizMap.forEach((visual) => {
+          if (visual.type !== "drop") {
+            return;
+          }
+
+          const elapsed = Phaser.Math.Wrap(this.time.now - visual.startTime, 0, DROP_CYCLE_TIME);
+          if (elapsed < DROP_WARNING_TIME) {
+            const pulse = 0.2 + Math.sin(this.time.now / 75) * 0.08;
+            visual.shadow
+              .setAlpha(pulse)
+              .setScale(0.75 + elapsed / DROP_WARNING_TIME * 0.45, 1)
+              .setVisible(true);
+            visual.body.setVisible(false);
+            visual.active = false;
+            return;
+          }
+
+          if (elapsed < DROP_WARNING_TIME + DROP_FALL_TIME) {
+            const t = (elapsed - DROP_WARNING_TIME) / DROP_FALL_TIME;
+            visual.shadow.setAlpha(0.35).setScale(1.2, 1).setVisible(true);
+            visual.body
+              .setPosition(visual.body.x, visual.targetY - 350 + 440 * t)
+              .setAngle(t * 240)
+              .setVisible(true);
+            visual.active = true;
+            return;
+          }
+
+          visual.shadow.setVisible(false);
+          visual.body.setVisible(false);
+          visual.active = false;
+        });
+      }
+
+      checkObstacleHits() {
+        if (this.catState !== CatState.JUMP && this.catState !== CatState.FALLING) {
+          return;
+        }
+
+        this.obstacleVizMap.forEach((visual) => {
+          if (this.catState === CatState.DEATH) {
+            return;
+          }
+          if (visual.type === "drop" && !visual.active) {
+            return;
+          }
+
+          const body = visual.body;
+          if (!body.visible) {
+            return;
+          }
+
+          const dx = this.cat.x - body.x;
+          const dy = this.cat.y - body.y;
+          const hitRadius = visual.radius + 13;
+          if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+            this.triggerObstacleDeath(visual.type);
+          }
+        });
+      }
+
       makeGrabPipe(point) {
         const pipe = this.add.rectangle(point.x, point.y, 28, 9, 0x8b5a2b)
           .setStrokeStyle(2, 0x4f331d);
@@ -842,9 +1133,21 @@
 
       // ===================== DEATH / GAME OVER =====================
 
+      triggerObstacleDeath(type) {
+        this.deathCause = type === "bird" ? "bird" : "drop";
+        this.catState = CatState.DEATH;
+        this.cat.setVelocity(0, 0);
+        this.cat.body.allowGravity = false;
+        this.resetCatScale();
+        this.jumpArrow.setVisible(false);
+        this.showDeathScreen();
+      }
+
       showDeathScreen() {
         const finalHeight = Math.max(0, Math.round((500 - this.cat.y) / 10));
         const bestH = this.bestHeight;
+        const copy = DeathCopy[this.deathCause] || DeathCopy.fall;
+        const line = Phaser.Utils.Array.GetRandom(copy.lines);
 
         this.cameras.main.stopFollow();
 
@@ -853,11 +1156,11 @@
           .setScrollFactor(0).setDepth(100);
 
         // Stats panel
-        const panelBg = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 260, 220, 0x1a1a2e, 0.9)
+        const panelBg = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 292, 260, 0x1a1a2e, 0.9)
           .setScrollFactor(0).setDepth(101)
           .setStrokeStyle(2, 0x4a4a8a);
 
-        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 80, "💀 坠落", {
+        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 98, copy.title, {
           fontFamily: "monospace",
           fontSize: "26px",
           color: "#ff6666",
@@ -865,7 +1168,17 @@
           strokeThickness: 3
         }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
 
-        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, `本次攀登: ${finalHeight}m`, {
+        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 52, line, {
+          fontFamily: "monospace",
+          fontSize: "15px",
+          color: "#ffffff",
+          stroke: "#000000",
+          strokeThickness: 2,
+          align: "center",
+          wordWrap: { width: 250, useAdvancedWrap: true }
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
+
+        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 2, `本次攀登: ${finalHeight}m`, {
           fontFamily: "monospace",
           fontSize: "18px",
           color: "#ffffff",
@@ -873,7 +1186,7 @@
           strokeThickness: 2
         }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
 
-        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10, `最高纪录: ${bestH}m`, {
+        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 42, `最高纪录: ${bestH}m`, {
           fontFamily: "monospace",
           fontSize: "18px",
           color: "#ffd700",
@@ -881,7 +1194,7 @@
           strokeThickness: 2
         }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
 
-        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, "点击重新开始", {
+        this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 92, "点击重新开始", {
           fontFamily: "monospace",
           fontSize: "16px",
           color: "#88aaff",
@@ -904,6 +1217,8 @@
 
         this.updateRoomVisibility();
         this.updateGrabVisibility();
+        this.updateObstacleVisibility();
+        this.updateObstacleAnimations();
         this.updateKeyboardCharge();
 
         if (this.catState === CatState.JUMP && this.cat.body.velocity.y > 50) {
@@ -913,11 +1228,13 @@
 
         if (this.catState === CatState.FALLING || this.catState === CatState.JUMP) {
           this.tryCatch();
+          this.checkObstacleHits();
         }
 
         const FALL_MARGIN = 1500;
         if ((this.catState === CatState.FALLING || this.catState === CatState.JUMP) && this.cat.y > this.lastSafeY + FALL_MARGIN) {
           this.catState = CatState.DEATH;
+          this.deathCause = "fall";
           this.showDeathScreen();
           return;
         }
@@ -975,12 +1292,50 @@
 
         this.releasedGrab = this.currentGrab;
         this.currentGrab = null;
+        this.skipCatchIndex = -1;
         this.catState = CatState.JUMP;
         this.airCatchUsed = false;
         this.jumpArrow.setVisible(false);
         this.resetCatScale();
         this.cat.body.allowGravity = true;
         this.cat.setVelocity(direction * velocityX, velocityY);
+        this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
+      }
+
+      handleChargedJump() {
+        if (this.catState === CatState.DEATH) {
+          return;
+        }
+
+        if (!this.currentGrab || this.currentGrab.index + 2 >= this.grabPoints.length) {
+          this.handleJump(this.chargeDirection, CHARGE_JUMP_VX, CHARGE_JUMP_VY);
+          return;
+        }
+
+        const target = this.grabPoints[this.currentGrab.index + 2];
+        const released = this.currentGrab;
+        const dx = target.x - this.cat.x;
+        const dy = target.y - this.cat.y;
+        const disc = CHARGE_JUMP_VY * CHARGE_JUMP_VY + 2 * GRAVITY * dy;
+        const flightTime = disc > 0 ? (-CHARGE_JUMP_VY + Math.sqrt(disc)) / GRAVITY : 0;
+
+        if (flightTime <= 0) {
+          this.handleJump(this.chargeDirection, CHARGE_JUMP_VX, CHARGE_JUMP_VY);
+          return;
+        }
+
+        const velocityX = dx / flightTime;
+        const direction = velocityX === 0 ? this.chargeDirection : Math.sign(velocityX);
+
+        this.releasedGrab = released;
+        this.currentGrab = null;
+        this.skipCatchIndex = released.index + 1;
+        this.catState = CatState.JUMP;
+        this.airCatchUsed = false;
+        this.jumpArrow.setVisible(false);
+        this.resetCatScale();
+        this.cat.body.allowGravity = true;
+        this.cat.setVelocity(velocityX, CHARGE_JUMP_VY);
         this.cat.play(direction < 0 ? "cat-jump-left" : "cat-jump-right");
       }
 
@@ -1036,9 +1391,6 @@
           this.cat.play("cat-charge2");
         }
 
-        if (chargeTime >= MAX_CHARGE) {
-          this.releaseChargeJump();
-        }
       }
 
       releaseChargeJump() {
@@ -1047,14 +1399,18 @@
         }
 
         const chargeTime = this.time.now - this.chargeStart;
-        const t = chargeTime < MIN_CHARGE ? 0 : Phaser.Math.Clamp(chargeTime / MAX_CHARGE, 0, 1);
-        const velocityX = Phaser.Math.Linear(JUMP_VX, CHARGE_JUMP_VX, t);
-        const velocityY = Phaser.Math.Linear(JUMP_VY, CHARGE_JUMP_VY, t);
+        const isCharged = chargeTime >= MAX_CHARGE;
+        const direction = this.chargeDirection;
 
         this.chargeStart = 0;
         this.chargeInput = null;
         this.keyboardChargeDirection = 0;
-        this.handleJump(this.chargeDirection, velocityX, velocityY);
+
+        if (isCharged) {
+          this.handleChargedJump();
+        } else {
+          this.handleJump(direction, JUMP_VX, JUMP_VY);
+        }
       }
 
       updateKeyboardCharge() {
@@ -1115,7 +1471,7 @@
         let closestDistance = Infinity;
         for (let i = from; i <= to; i++) {
           const point = this.grabPoints[i];
-          if (point === this.currentGrab || point === this.releasedGrab) {
+          if (point === this.currentGrab || point === this.releasedGrab || point.index === this.skipCatchIndex) {
             continue;
           }
           const dx = this.cat.x - point.x;
@@ -1135,6 +1491,7 @@
       catchPoint(point) {
         this.currentGrab = point;
         this.releasedGrab = null;
+        this.skipCatchIndex = -1;
         this.catState = CatState.CATCHING;
         this.cat.setPosition(point.x, point.y + 9);
         this.cat.setVelocity(0, 0);
