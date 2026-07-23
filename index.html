@@ -20,9 +20,8 @@
     #game {
       width: 100vw;
       height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative;
+      overflow: hidden;
     }
 
     canvas {
@@ -358,7 +357,7 @@
         this.lastSafeY = this.cat.y;
 
         this.cameras.main.setBounds(0, WORLD_TOP, GAME_WIDTH, WORLD_HEIGHT);
-        this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 100);
+        this.cameras.main.startFollow(this.cat, false, 0, 0.13, 0, 150);
         this.cameras.main.setDeadzone(GAME_WIDTH, 170);
 
         this.heightText = this.add.text(GAME_WIDTH / 2, 16, "高度 0m", {
